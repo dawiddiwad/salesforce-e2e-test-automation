@@ -1,0 +1,9 @@
+.sf
+.env
+.sfdx
+.vscode
+force-app
+.DS_STORE
+test-reports
+test-results
+node_modules

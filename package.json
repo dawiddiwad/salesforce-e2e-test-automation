@@ -1,0 +1,47 @@
+{
+	"name": "salesforce-e2e-tests",
+	"version": "1.0.0",
+	"description": "example playwright test automation project focused on salesforce",
+	"keywords": [
+		"salesforce",
+		"playwright",
+		"e2e-testing",
+		"api-testing",
+		"test-automation"
+	],
+	"type": "module",
+	"author": "Dawid Dobrowolski SoftQA",
+	"scripts": {
+		"validation:check": "npm run compile:check && npm run lint:check && npm run format:check",
+		"compile:check": "npx tsc --noEmit",
+		"lint:check": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"format:check": "prettier . --check",
+		"format:fix": "prettier . --write",
+		"test:all": "npx playwright test",
+		"test:demo": "npx playwright test --project=demo",
+		"test:regression": "npx playwright test --project=regression",
+		"test:email": "npx playwright test --project=email",
+		"test:specific-project": "npx playwright test --project=specific-project",
+		"show:report": "npx playwright show-report test-reports/html"
+	},
+	"devDependencies": {
+		"@types/imap": "^0.8.42",
+		"@types/node": "^24.3.0",
+		"eslint": "^9.39.2",
+		"eslint-config-prettier": "^10.1.8",
+		"husky": "^9.1.7",
+		"prettier": "^3.7.4",
+		"strip-ansi": "^7.1.2",
+		"tsx": "^4.21.0",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.50.1"
+	},
+	"dependencies": {
+		"@faker-js/faker": "^10.2.0",
+		"@playwright/test": "^1.57.0",
+		"dotenv": "^17.2.1",
+		"imap": "0.8.17",
+		"jsforce": "^3.10.4"
+	}
+}

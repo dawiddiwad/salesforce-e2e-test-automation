@@ -1,0 +1,109 @@
+image: mcr.microsoft.com/playwright:v1.55.0-noble
+
+definitions:
+    steps:
+        - step: &deployment
+              name: deploy source to scratch org
+              script:
+                  - pipe: atlassian/jenkins-job-trigger:0.10.0
+                    variables:
+                        JENKINS_URL: $JENKINS_URL
+                        JENKINS_USER: $JENKINS_USER
+                        JENKINS_TOKEN: $JENKINS_TOKEN
+                        JOB_NAME: $JENKINS_DEPLOYMENT_JOB
+                        JOB_PARAMETERS: >
+                            {
+                              'BRANCH': $JENKINS_DEPLOYMENT_BRANCH,
+                              'SFDX_URL': $TARGET_ORG_SFDX_URL,
+                              'RELEASE': $JENKINS_DEPLOYMENT_RELEASE
+                            }
+                        WAIT: 'true'
+                        WAIT_MAX_TIME: 7000
+        - step: &run-tests
+              name: run tests
+              caches:
+                  - node
+              script:
+                  - export NODE_NO_WARNINGS=1
+                  - cd salesforce-e2e-tests
+                  - npm install
+                  - npm install -g @salesforce/cli
+                  - echo $TARGET_ORG_SFDX_URL | sf org login sfdx-url --set-default --no-prompt --sfdx-url-stdin
+                  - $RUN_TESTS_CLI_COMMAND
+              artifacts:
+                  - salesforce-e2e-tests/test-reports/**
+
+pipelines:
+    custom:
+        1-salesforce-e2e-test-only:
+            - variables:
+                  - name: TARGET_ORG_SFDX_URL
+                    description: SFDX URL for target org
+                  - name: RUN_TESTS_CLI_COMMAND
+                    description: Run Playwright tests cli command
+                    default: npx playwright test --project=demo
+                  - name: XRAY_ENABLED
+                    description: enable Xray reporting
+                    default: false
+                    allowed-values:
+                        - true
+                        - false
+                  - name: XRAY_TESTPLAN_KEY
+                    description: Xray test plan key for reporting
+                    default: TA-11848
+                  - name: STORAGE_CLEANUP_ENABLED
+                    description: enable data storage cleanup
+                    default: false
+                    allowed-values:
+                        - true
+                        - false
+            - step: *run-tests
+        2-salesforce-e2e-deploy-and-test:
+            - variables:
+                  - name: TARGET_ORG_SFDX_URL
+                    description: SFDX URL for target org
+                  - name: JENKINS_DEPLOYMENT_JOB
+                    description: Jenkins deployment job name to run before tests
+                    default: (DEV) Deploy To Scratch Org
+                    allowed-values:
+                        - (V6) Deploy To Scratch Org
+                        - (DEV) Deploy To Scratch Org
+                  - name: JENKINS_DEPLOYMENT_BRANCH
+                    description: Branch to deploy
+                    default: origin/develop
+                  - name: JENKINS_DEPLOYMENT_RELEASE
+                    description: Release to deploy
+                    default: develop
+                  - name: RUN_TESTS_CLI_COMMAND
+                    description: Run Playwright tests cli command
+                    default: npx playwright test --project=demo
+                  - name: XRAY_ENABLED
+                    description: enable Xray reporting
+                    default: false
+                    allowed-values:
+                        - true
+                        - false
+                  - name: XRAY_TESTPLAN_KEY
+                    description: Xray test plan key for reporting
+                    default: TA-11848
+                  - name: STORAGE_CLEANUP_ENABLED
+                    description: enable data storage cleanup
+                    default: false
+                    allowed-values:
+                        - true
+                        - false
+            - step: *deployment
+            - step: *run-tests
+        3-salesforce-e2e-scheduled-regression-tests:
+            - variables:
+                  - name: XRAY_TESTPLAN_KEY
+                    description: Xray test plan key for reporting
+                    default: TA-11848
+                  - name: STORAGE_CLEANUP_ENABLED
+                    description: enable data storage cleanup
+                    default: false
+                    allowed-values:
+                        - true
+                        - false
+            - step: *deployment
+            - step: *run-tests

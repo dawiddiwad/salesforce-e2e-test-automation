@@ -1,0 +1,8 @@
+test-reports
+test-results
+node_modules
+playwright-report
+force-app
+.sfdx
+.sf
+.env
