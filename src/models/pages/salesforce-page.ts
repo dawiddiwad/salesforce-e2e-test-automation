@@ -78,7 +78,7 @@ export abstract class SalesforcePage {
 				async () => expect(await this.spinners()).not.toHaveLength(0),
 				'wait for loading spinners to show up'
 			).toPass({ timeout: override?.showupTimeout ?? 1000 })
-		} catch (error) {
+		} catch {
 			return
 		}
 		await expect(

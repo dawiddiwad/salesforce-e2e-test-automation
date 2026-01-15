@@ -77,8 +77,9 @@ test.describe.serial('Package Search - POA Cruise', async () => {
 					await ui.packageSearch.filters.setDatesNextMonth()
 					await ui.packageSearch.filters.setDefaultRooms(4)
 					await ui.packageSearch.filters.searchPackagesAvailability()
-				} catch (error: any) {
-					if (error.message && error.message.includes('retry your recent action')) return error.message
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : ''
+					if (errorMessage.includes('retry your recent action')) return errorMessage
 					else throw error
 				}
 			}
@@ -377,8 +378,9 @@ test.describe.serial('Package Search - POA Land', async () => {
 					await ui.packageSearch.filters.setDatesNextMonth()
 					await ui.packageSearch.filters.setDefaultRooms(4)
 					await ui.packageSearch.filters.searchPackagesAvailability()
-				} catch (error: any) {
-					if (error.message && error.message.includes('retry your recent action')) return error.message
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : ''
+					if (errorMessage.includes('retry your recent action')) return errorMessage
 					else throw error
 				}
 			}

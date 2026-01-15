@@ -21,12 +21,14 @@ export class SobjectRecordActions {
 			)
 			.then((result) => {
 				const childs: Record[] = []
-				result.records.forEach((record) =>
-					(record[childSobjectRelationName as string]
-						? record[childSobjectRelationName as string].records
-						: []
-					).forEach((record: Record) => childs.push(record))
-				)
+				result.records.forEach((record) => {
+					const recordWithRelations = record as unknown as {
+						[key: string]: { records: Record[] } | undefined
+					}
+					const childRelation = recordWithRelations[childSobjectRelationName]
+					const childRecords = childRelation?.records ?? []
+					childRecords.forEach((childRecord) => childs.push(childRecord))
+				})
 				return childs
 			})
 			.catch((error) => {

@@ -30,7 +30,7 @@ export class ImapHandler implements EmailApiHandler {
 			this.api.once('ready', () => {
 				resolve()
 			})
-			this.api.once('error', (error) => {
+			this.api.once('error', (error: Error) => {
 				throw new Error(`Error connecting to IMAP server due to\n${error}`)
 			})
 			this.api.connect()

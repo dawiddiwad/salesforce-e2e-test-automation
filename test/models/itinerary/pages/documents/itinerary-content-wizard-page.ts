@@ -30,7 +30,7 @@ export class ItineraryContentWizard extends SalesforcePage {
 	}
 
 	@step
-	async advanceToStage(stage: Stage) {
+	async advanceToStage(stage: Stage): Promise<void> {
 		expect(this.path.stage.byName(stage), `stage ${stage} should be visible on path`).toBeVisible()
 		if (await this.path.stage.currentByName(stage).isVisible()) return
 		await this.path.buttonContinue.click()

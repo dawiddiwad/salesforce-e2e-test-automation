@@ -26,7 +26,7 @@ export type Context = {
 
 export class SalesforceCliAuthenticator {
 	private readonly cli: SalesforceCliHandler
-	private targetOrg: TargetOrg
+	private targetOrg!: TargetOrg
 	ready: Promise<this>
 
 	constructor(cliHandler: SalesforceCliHandler) {

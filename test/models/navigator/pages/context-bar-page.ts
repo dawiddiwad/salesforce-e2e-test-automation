@@ -49,7 +49,7 @@ export class NavigatorContextBarPage extends SalesforcePage {
 	}
 
 	@step
-	async openApp(name: App) {
+	async openApp(name: App): Promise<void> {
 		await this.waitForOptionalSpinners()
 		if ((await this.item.currentApp.textContent()) === name) return
 		else
@@ -59,7 +59,7 @@ export class NavigatorContextBarPage extends SalesforcePage {
 				await this.dialog.appLauncher.inputSearch.fill(name, { timeout: 3000 })
 				await this.dialog.appLauncher.itemSearchResult(name).click({ timeout: 3000 })
 			} catch (error) {
-				if (error.name.includes('TimeoutError')) return this.openApp(name)
+				if (error instanceof Error && error.name.includes('TimeoutError')) return this.openApp(name)
 				else throw error
 			}
 		await this.waitForOptionalSpinners()

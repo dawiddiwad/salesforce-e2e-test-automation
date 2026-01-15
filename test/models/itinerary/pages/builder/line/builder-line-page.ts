@@ -213,11 +213,11 @@ export class ItineraryBuilderLinePage extends SalesforcePage {
 	}
 
 	@step
-	async setService<Type extends keyof ServiceCatalog>(item: Service<Type>) {
+	async setService<Type extends keyof ServiceCatalog>(item: Service<Type>): Promise<void> {
 		try {
 			await this.column.serviceType.input.searchServiceTypes.waitFor({ timeout: 1000 })
 		} catch (error) {
-			if (error.name.includes('TimeoutError')) {
+			if (error instanceof Error && error.name.includes('TimeoutError')) {
 				await this.column.serviceType.button.selectServiceType.nth(this.lineIndex).click()
 				return this.setService(item)
 			} else throw error
@@ -229,7 +229,7 @@ export class ItineraryBuilderLinePage extends SalesforcePage {
 			await this.column.serviceType.item.searchResult(item.name).waitFor({ timeout: 10000 })
 			await this.column.serviceName.item.searchResult(item.name).click()
 		} catch (error) {
-			if (error.name.includes('TimeoutError')) {
+			if (error instanceof Error && error.name.includes('TimeoutError')) {
 				await this.column.serviceName.input.searchService.fill(item.name)
 				await this.column.serviceName.item.searchResult(item.name).click()
 			} else throw error

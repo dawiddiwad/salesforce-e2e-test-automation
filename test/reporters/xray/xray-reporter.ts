@@ -164,7 +164,7 @@ export default class XrayReporter implements Reporter {
 		return message
 	}
 
-	private stringify(json: Record<string, any>): string {
+	private stringify(json: Record<string, unknown>): string {
 		return JSON.stringify(json, null, 3)
 	}
 
@@ -257,9 +257,10 @@ export default class XrayReporter implements Reporter {
 					`${this.options.outputFolder}/${this.options.outputFilename}`,
 					`${this.stringify(this.fullTestResult)}`
 				)
-			} catch (error: any) {
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error)
 				return console.error(
-					`⛔ unable to save Xray ${this.options.outputFilename} report due to\n${this.stringify(error)}`
+					`⛔ unable to save Xray ${this.options.outputFilename} report due to\n${errorMessage}`
 				)
 			}
 

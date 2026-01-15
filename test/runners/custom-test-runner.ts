@@ -43,12 +43,15 @@ export const test = mergeTests(
 	testEmailApiCatalog
 )
 
-export function step(target: (...args: any[]) => any, context: ClassMethodDecoratorContext) {
-	return function (this: any, ...args: any[]) {
+export function step<This, Args extends unknown[], Return>(
+	target: (this: This, ...args: Args) => Return,
+	context: ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>
+) {
+	return function (this: This, ...args: Args): Return {
 		const formatMethodName = (name: string) =>
 			name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^([a-z])/, (match) => match.toUpperCase())
 
-		const formatMethodArguments = (args: any[]) =>
+		const formatMethodArguments = (args: unknown[]) =>
 			args
 				.map((arg) => {
 					if (Array.isArray(arg)) {
@@ -64,8 +67,9 @@ export function step(target: (...args: any[]) => any, context: ClassMethodDecora
 
 		const methodName = formatMethodName(String(context.name))
 		const formattedArguments = args.length ? ` : ${formatMethodArguments(args)}` : ''
-		const stepName = `${this.constructor.name} > ${methodName}${formattedArguments}`
+		const className = (this as object).constructor.name
+		const stepName = `${className} > ${methodName}${formattedArguments}`
 
-		return test.step(stepName, async () => target.call(this, ...args), { box: true })
+		return test.step(stepName, async () => target.call(this, ...args), { box: true }) as Return
 	}
 }

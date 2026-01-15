@@ -6,10 +6,10 @@ import { SalesforceBackendUser, SalesforceFrontendUser } from './salesforce-user
 import { step } from '../../test/runners/custom-test-runner'
 
 export class DefaultSalesforceCliUser implements SalesforceBackendUser, SalesforceFrontendUser {
-	private authHandler: SalesforceCliAuthenticator
+	private authHandler!: SalesforceCliAuthenticator
 	ready: Promise<this>
-	ui: Page
-	api: RestApiHandler
+	ui!: Page
+	api!: RestApiHandler
 
 	constructor() {
 		this.ready = new SalesforceCliAuthenticator(new SalesforceCliHandler()).ready
