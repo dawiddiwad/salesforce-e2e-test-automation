@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
 import { SalesforceId } from '../../../../../../src/models/types'
-import { step } from '../../../../../runners/custom-test-runner'
+import { step } from '../../../../../../src/runners/step'
 import { BookingWizardTabPage } from './booking-wizard-page'
 
 export abstract class StayTabPage extends BookingWizardTabPage {

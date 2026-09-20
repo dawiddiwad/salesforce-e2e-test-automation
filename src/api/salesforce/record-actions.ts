@@ -1,5 +1,5 @@
 import { Record } from 'jsforce'
-import { step } from '../../../test/runners/custom-test-runner'
+import { step } from '../../runners/step'
 import { RestApiHandler } from './rest-api-handler'
 
 export class SobjectRecordActions {

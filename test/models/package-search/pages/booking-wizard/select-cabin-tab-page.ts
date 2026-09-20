@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 import { BookingWizardTabPage } from './shared/booking-wizard-page'
 import { BookingWizardTab } from '../../types/booking-wizard'
 

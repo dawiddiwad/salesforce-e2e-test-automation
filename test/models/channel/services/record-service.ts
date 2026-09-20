@@ -1,5 +1,5 @@
 import { SalesforceService } from '../../../../src/models/services/salesforce-service'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
 import { Record } from 'jsforce'
 
 export class ChannelRecordService extends SalesforceService {

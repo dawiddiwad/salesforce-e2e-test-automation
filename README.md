@@ -1,5 +1,7 @@
 ## Salesforce E2E Test Automation Framework
 
+[![validation](https://github.com/dawiddiwad/salesforce-e2e-test-automation/actions/workflows/validation.yml/badge.svg)](https://github.com/dawiddiwad/salesforce-e2e-test-automation/actions/workflows/validation.yml)
+
 An example of an E2E test automation project for Salesforce UI and API layers.
 
 This is a portfolio piece rather than a product.
@@ -101,7 +103,7 @@ It works best with [vsc](https://code.visualstudio.com) as it has extensions for
         XRAY_CLIENT_SECRET=99942accb77334c5233ca311591cd57fe121dd1e9f59f2b2d5609d2e9c856666
         ```
     - if you just want to stop posting results automatically to Xray after each run, decalre additional variable in `.env` file: `XRAY_STOP_POSTING=true` in such case .json file will be generated in the `./test-reposrts/xray` folder that can be uploaded manually to Xray.
-    - if you want to **enable Xray integration** declare `XRAY_ENABLE=true` in `.env` file, otherwise the Xray reporter will be disabled and no other `XRAY_xx` variables are required.
+    - if you want to **enable Xray integration** declare `XRAY_ENABLED=true` in `.env` file, otherwise the Xray reporter will be disabled and no other `XRAY_xx` variables are required.
 
 #### Offline validation
 
@@ -110,9 +112,11 @@ npm run validation:check
 npm run test:unit
 ```
 
+These require no Salesforce org, browser or credentials, and run on every push and pull request via [GitHub Actions](./.github/workflows/validation.yml). The end-to-end suites run from the Bitbucket pipeline, which has access to a target sandbox.
+
 CI uses `node:24.20.0-bookworm` and runs from the repository root using `npm ci`. It installs Chromium and its system dependencies with the locked Playwright CLI (`npx playwright install --with-deps chromium`), so the browser revision always matches `@playwright/test`. Salesforce CLI is pinned to `2.150.6` in the pipeline. Offline unit tests focus on reusable framework mechanics, not domain page or service implementations. Reports and raw test results are retained under `test-reports/`.
 
-Step titles intentionally omit method arguments to avoid leaking credentials. Review screenshots, traces and other artifacts for sensitive application data before sharing them.
+Step titles include method arguments, so a report localises a failure to `Open Tab : Builder` rather than `Open Tab`. Upstream failures are propagated through `Error.cause` so a failed run stays debuggable. Both are passed through the redactor first, which masks registered credentials — see [error propagation](./docs/DEVELOPER_GUIDE.md#error-propagation) and [the `@step` decorator](./docs/DEVELOPER_GUIDE.md#the-step-decorator). Review screenshots, traces and other artifacts for sensitive application data before sharing them.
 
 #### [running tests](https://playwright.dev/docs/running-tests):
 

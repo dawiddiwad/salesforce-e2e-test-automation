@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
 import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 import { ItineraryPassengersLinePage } from './passengers-line-page'
 import { ItineraryManageGroupsPage } from './manage-groups-page'
 import { ItineraryPassengerAllocationPage } from './passenger-allocation-page'

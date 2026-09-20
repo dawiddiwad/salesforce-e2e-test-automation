@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { inspect } from 'node:util'
 import { test, type TestContext } from 'node:test'
-import { test as playwrightTest, step } from '../runners/custom-test-runner'
+import { test as playwrightTest } from '@playwright/test'
+import { step } from '../../src/runners/step'
 import { RestApiHandler, EmptyQueryResultError } from '../../src/api/salesforce/rest-api-handler'
 import childProcess, { type ExecException } from 'node:child_process'
 import { syncBuiltinESMExports } from 'node:module'
@@ -10,10 +11,18 @@ import type { Page } from '@playwright/test'
 import { SalesforceCliHandler } from '../../src/cli/salesforce-cli-handler'
 import { SalesforceCliAuthenticator } from '../../src/authorization/salesforce-cli-authenticator'
 import { DefaultSalesforceCliUser } from '../../src/users/default-salesforce-cli-users'
+import { secrets } from '../../src/errors/redaction'
 
 const secret = 'synthetic-client-secret-do-not-log'
 const clientId = 'synthetic-client-id-do-not-log'
 const source = `String clientSecret = '${secret}';`
+
+/**
+ * In a real run these are registered by `SalesforceCliAuthenticator.registerCredentials` and
+ * the `RestApiHandler` constructor. Several tests here build handlers via `Object.create` to
+ * bypass construction, so registration is done explicitly for the whole file.
+ */
+secrets.register(secret, clientId)
 const successfulResult = {
 	success: true,
 	compiled: true,
@@ -50,35 +59,82 @@ function handlerWith(connection: object): RestApiHandler {
 	return handler
 }
 
+/**
+ * Asserts that no registered credential reaches a reportable artifact — step titles, thrown
+ * messages, retained causes, or any stack within them.
+ *
+ * Causes are deliberately *not* asserted to be absent: the framework propagates them so that
+ * failures stay debuggable. What must hold is that they are credential-free.
+ */
 function assertSafe(captured: { titles: string[]; errors: unknown[] }) {
 	const artifacts = inspect(captured, { depth: null })
-	assert.ok(!artifacts.includes(secret))
-	assert.ok(!artifacts.includes(clientId))
-	assert.ok(!artifacts.includes(source))
+	assert.ok(!artifacts.includes(secret), 'registered secret reached a reportable artifact')
+	assert.ok(!artifacts.includes(clientId), 'registered client id reached a reportable artifact')
+	assert.ok(!artifacts.includes(source), 'Apex source reached a reportable artifact')
 	for (const error of captured.errors) {
 		assert.ok(error instanceof Error)
-		assert.equal(error.cause, undefined)
 	}
 }
 
-test('step titles omit every argument without changing receiver, arguments, or return value', async (t) => {
+/** Asserts the upstream diagnostic survived wrapping, so a failure remains debuggable. */
+function assertCausePreserved(error: unknown, expectedMessage: string) {
+	assert.ok(error instanceof Error)
+	assert.equal(error.message, expectedMessage)
+	assert.ok(error.cause instanceof Error, `${expectedMessage} must retain its upstream cause`)
+	return true
+}
+
+test('step titles render arguments without changing receiver, arguments, or return value', async (t) => {
 	const captured = captureSteps(t)
-	const cyclic: { self?: object; clientSecret: string } = { clientSecret: secret }
-	cyclic.self = cyclic
-	const result = { clientId }
-	const args = [secret, [clientId], cyclic, undefined, { toJSON: () => assert.fail('must not serialize') }]
+	const result = { tab: 'Builder' }
+	const args = ['Builder', ['Europe', 'Asia'], { type: 'Quote' }, undefined]
 	class Example {
 		@step
-		async acceptCredentials(...received: unknown[]) {
+		async openTab(...received: unknown[]) {
 			assert.equal(this, example)
 			assert.deepEqual(received, args)
 			return result
 		}
 	}
 	const example = new Example()
-	assert.equal(await example.acceptCredentials(...args), result)
-	assert.deepEqual(captured.titles, ['Example > Accept Credentials'])
+	assert.equal(await example.openTab(...args), result)
+	assert.deepEqual(captured.titles, ['Example > Open Tab : Builder, [Europe, Asia], {\n  "type": "Quote"\n}, any'])
+})
+
+test('step titles mask registered credentials passed as arguments', async (t) => {
+	const captured = captureSteps(t)
+	class Example {
+		@step
+		async authenticate(...received: unknown[]) {
+			assert.equal(received.length, 2)
+			return 'ok'
+		}
+	}
+	assert.equal(await new Example().authenticate(secret, { clientSecret: secret, user: clientId }), 'ok')
 	assertSafe(captured)
+})
+
+test('an unserializable argument degrades instead of failing the step it describes', async (t) => {
+	const captured = captureSteps(t)
+	const cyclic: { self?: object; name: string } = { name: 'itinerary' }
+	cyclic.self = cyclic
+	class Example {
+		@step
+		async accept(...received: unknown[]) {
+			assert.equal(received.length, 2)
+			return 'ok'
+		}
+	}
+	assert.equal(
+		await new Example().accept(cyclic, {
+			toJSON: () => {
+				throw new Error('refuses to serialize')
+			},
+		}),
+		'ok'
+	)
+	assert.equal(captured.titles.length, 1)
+	assert.match(captured.titles[0], /^Example > Accept : \[object Object\], \[object Object\]$/)
 })
 
 test('step preserves thrown error identity', async (t) => {
@@ -93,7 +149,7 @@ test('step preserves thrown error identity', async (t) => {
 	await assert.rejects(new Example().fail(), (error: unknown) => error === expected)
 })
 
-test('executeApex forwards source and returns successful result without logging source', async (t) => {
+test('executeApex forwards source and reports it with registered credentials masked', async (t) => {
 	const captured = captureSteps(t)
 	const handler = handlerWith({
 		tooling: {
@@ -104,7 +160,7 @@ test('executeApex forwards source and returns successful result without logging 
 		},
 	})
 	assert.equal(await handler.executeApex(source), successfulResult)
-	assert.deepEqual(captured.titles, ['RestApiHandler > Execute Apex'])
+	assert.deepEqual(captured.titles, [`RestApiHandler > Execute Apex : String clientSecret = '«redacted»';`])
 	assertSafe(captured)
 })
 
@@ -130,22 +186,41 @@ test('executeApex failure exposes only validated status and location metadata', 
 	assertSafe(captured)
 })
 
-test('executeApex rejects untrusted metadata and transport errors without retaining a cause', async (t) => {
+test('executeApex rejects untrusted metadata and retains a redacted transport cause', async (t) => {
 	const captured = captureSteps(t)
-	for (const executeAnonymous of [
-		async () => ({ success: false, compiled: secret, line: secret, column: clientId }),
-		async () => {
-			throw new Error(source, { cause: new Error(clientId) })
-		},
-	]) {
-		await assert.rejects(handlerWith({ tooling: { executeAnonymous } }).executeApex(source), {
-			message: 'failed executing anonymous Apex',
-		})
-	}
+	await assert.rejects(
+		handlerWith({
+			tooling: {
+				executeAnonymous: async () => ({ success: false, compiled: secret, line: secret, column: clientId }),
+			},
+		}).executeApex(source),
+		(error: unknown) => {
+			assert.ok(error instanceof Error)
+			assert.equal(error.message, 'failed executing anonymous Apex')
+			assert.equal(error.cause, undefined)
+			return true
+		}
+	)
+	await assert.rejects(
+		handlerWith({
+			tooling: {
+				executeAnonymous: async () => {
+					throw new Error(source, { cause: new Error(`upstream ${clientId} reset`) })
+				},
+			},
+		}).executeApex(source),
+		(error: unknown) => {
+			assertCausePreserved(error, 'failed executing anonymous Apex')
+			const cause = (error as Error).cause as Error
+			assert.ok(cause.cause instanceof Error, 'nested cause chain must survive')
+			assert.match(cause.cause.message, /upstream .* reset/, 'non-credential text must survive')
+			return true
+		}
+	)
 	assertSafe(captured)
 })
 
-test('update forwards payload on success but omits payload and upstream diagnostics on failure', async (t) => {
+test('update forwards payload on success and redacts credentials in the retained cause', async (t) => {
 	const captured = captureSteps(t)
 	const payload = { Id: 'synthetic-record', Secret__c: secret }
 	const result = { id: payload.Id, success: true, errors: [] }
@@ -163,7 +238,9 @@ test('update forwards payload on success but omits payload and upstream diagnost
 			throw new Error(`${secret}: ${clientId}`)
 		},
 	})
-	await assert.rejects(failingHandler.update('Account', payload), { message: 'unable to update Salesforce record' })
+	await assert.rejects(failingHandler.update('Account', payload), (error: unknown) =>
+		assertCausePreserved(error, 'unable to update Salesforce record')
+	)
 	assertSafe(captured)
 })
 
@@ -181,17 +258,23 @@ test('query preserves typed empty results and successful forwarding without logg
 	assertSafe(captured)
 })
 
-test('CRUD failures discard upstream diagnostics and request context', async (t) => {
+test('CRUD failures retain a redacted upstream cause', async (t) => {
 	const captured = captureSteps(t)
 	const fail = async () => {
-		throw new Error(`${secret}: ${clientId}`)
+		throw new Error(`FIELD_CUSTOM_VALIDATION_EXCEPTION ${secret}: ${clientId}`)
 	}
 	const handler = handlerWith({ create: fail, retrieve: fail, delete: fail })
-	await assert.rejects(handler.create('Account', { Secret__c: secret }), {
-		message: 'unable to create Salesforce record',
-	})
-	await assert.rejects(handler.read('Account', secret), { message: 'unable to read Salesforce record' })
-	await assert.rejects(handler.delete('Account', secret), { message: 'unable to delete Salesforce record' })
+	for (const [operation, message] of [
+		[() => handler.create('Account', { Secret__c: secret }), 'unable to create Salesforce record'],
+		[() => handler.read('Account', secret), 'unable to read Salesforce record'],
+		[() => handler.delete('Account', secret), 'unable to delete Salesforce record'],
+	] as const) {
+		await assert.rejects(operation(), (error: unknown) => {
+			assertCausePreserved(error, message)
+			assert.match(((error as Error).cause as Error).message, /FIELD_CUSTOM_VALIDATION_EXCEPTION/)
+			return true
+		})
+	}
 	assertSafe(captured)
 })
 
@@ -224,7 +307,7 @@ test('CRUD success forwards requests and returns original responses', async (t) 
 	assertSafe(captured)
 })
 
-test('REST identity failures sanitize both asynchronous and synchronous errors', async (t) => {
+test('REST identity failures redact credentials in both asynchronous and synchronous errors', async (t) => {
 	const captured = captureSteps(t)
 	const credentials = { accessToken: secret, instanceUrl: new URL('https://example.invalid') }
 	const identity = t.mock.method(Connection.prototype, 'identity', async () => {
@@ -247,7 +330,7 @@ test('REST identity failures sanitize both asynchronous and synchronous errors',
 	assertSafe(captured)
 })
 
-test('authenticator and default user sanitize target org, API, and cookie failures', async (t) => {
+test('authenticator and default user redact target org, API, and cookie failures', async (t) => {
 	const captured = captureSteps(t)
 	const runCommand = t.mock.method(SalesforceCliHandler.prototype, 'runCommand', async () => {
 		throw new Error(`${secret}: ${clientId}`)
@@ -310,7 +393,7 @@ test('successful authentication forwards credentials without logging them', asyn
 	assertSafe(captured)
 })
 
-test('CLI logs and failures exclude arguments, output, stderr, and upstream errors', async (t) => {
+test('CLI logs and failures exclude arguments and output while retaining redacted stderr', async (t) => {
 	const captured = captureSteps(t)
 	t.mock.method(console, 'info', (message: string) => {
 		captured.titles.push(message)

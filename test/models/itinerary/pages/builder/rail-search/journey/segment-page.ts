@@ -1,6 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test'
 import { SalesforcePage } from '../../../../../../../src/models/pages/salesforce-page'
-import { step } from '../../../../../../runners/custom-test-runner'
+import { step } from '../../../../../../../src/runners/step'
 
 export class SegmentPage extends SalesforcePage {
 	private readonly indexFromTop: number

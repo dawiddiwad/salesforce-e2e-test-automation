@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test'
 import { Record as SaleforceRecord } from 'jsforce'
 import { SalesforceService } from '../../../../src/models/services/salesforce-service'
+import { diagnostic } from '../../../../src/errors/redaction'
 
 type CustomSetting = {
 	apiName: string
@@ -17,8 +18,8 @@ export abstract class CustomSettingsService extends SalesforceService {
 				.sobject(this.customSetting.apiName)
 				.find()
 				.run()) as SaleforceRecord[]
-		} catch {
-			throw new Error(`reading custom setting record for ${this.customSetting.apiName}`)
+		} catch (error) {
+			throw diagnostic(`reading custom setting record for ${this.customSetting.apiName}`, error)
 		}
 		expect(
 			appSettings.length,
@@ -37,7 +38,7 @@ export abstract class CustomSettingsService extends SalesforceService {
 					[custom.field]: custom.value,
 				})
 		} catch (error) {
-			throw new Error(`setting ${custom.field} of custom setting ${this.customSetting.apiName}`, { cause: error })
+			throw diagnostic(`setting ${custom.field} of custom setting ${this.customSetting.apiName}`, error)
 		}
 	}
 }

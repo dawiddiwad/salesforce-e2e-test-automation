@@ -1,5 +1,5 @@
 import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 import { PackageSearchAvailabilityRow } from './availability-row'
 
 export class PackageSearchAvailabilityPage extends SalesforcePage {

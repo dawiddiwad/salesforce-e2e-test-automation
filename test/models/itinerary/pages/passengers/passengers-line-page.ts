@@ -1,7 +1,7 @@
 import { expect, Page } from '@playwright/test'
 import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
 import { PassengersColumn } from '../../types/tab-passengers'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 
 export class ItineraryPassengersLinePage extends SalesforcePage {
 	private readonly lineIndex: number

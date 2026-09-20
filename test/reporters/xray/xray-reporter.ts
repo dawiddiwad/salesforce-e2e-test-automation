@@ -13,6 +13,7 @@ import {
 import * as fs from 'fs/promises'
 import { APIRequestContext, chromium } from '@playwright/test'
 import stripAnsi from 'strip-ansi'
+import { diagnostic, secrets } from '../../../src/errors/redaction'
 
 export default class XrayReporter implements Reporter {
 	protected readonly urlInstance = 'https://xray.cloud.getxray.app'
@@ -41,6 +42,8 @@ export default class XrayReporter implements Reporter {
 			throw new Error(`⛔ missing Xray Reporter config
             \nmake sure that ${Xray.clientId}, ${Xray.clientSecret}, ${Xray.projectKey}, ${Xray.testPlanKey} environment variables are set\n`)
 
+		secrets.register(process.env[Xray.clientId], process.env[Xray.clientSecret])
+
 		this.options = {
 			outputFolder: config.outputFolder,
 			outputFilename: config.outputFilename ?? 'xray-full-result.json',
@@ -55,7 +58,7 @@ export default class XrayReporter implements Reporter {
 			.then((chrome) => chrome.newContext())
 			.then((context) => context.request)
 			.catch((error) => {
-				throw new Error('⛔ unable to create API request context for Xray Reporter', { cause: error })
+				throw diagnostic('⛔ unable to create API request context for Xray Reporter', error)
 			})
 	}
 
@@ -155,7 +158,7 @@ export default class XrayReporter implements Reporter {
 	}
 
 	private formatError(message: string): string {
-		message = this.stripAnsiColoring(message)
+		message = secrets.redact(this.stripAnsiColoring(message))
 		message = `
         🔥 --- ERROR --- 🔥
         ${message}
@@ -172,17 +175,18 @@ export default class XrayReporter implements Reporter {
 		try {
 			const request = await this.request
 			const url = new URL(`${this.urlInstance}${this.pathAuthenticate}`).toString()
-			const secrets = {
+			const credentials = {
 				client_id: this.options.clientId,
 				client_secret: this.options.clientSecret,
 			}
-			const response = await request.post(url, { data: secrets })
+			const response = await request.post(url, { data: credentials })
 			if (!response.ok()) throw new Error('Xray authentication request failed')
 			const token: unknown = await response.json()
 			if (typeof token !== 'string' || !token.trim()) throw new Error('Invalid Xray authentication response')
+			secrets.register(token)
 			return (this.bearerToken = { Authorization: `Bearer ${token}` })
-		} catch {
-			throw new Error('⛔ unable to authenticate Xray')
+		} catch (error) {
+			throw diagnostic('⛔ unable to authenticate Xray', error)
 		}
 	}
 
@@ -196,8 +200,8 @@ export default class XrayReporter implements Reporter {
 			const response = await request.post(url, { data: results, headers: this.bearerToken })
 			if (!response.ok()) throw new Error('Xray result upload failed')
 			console.info('👉 success posting results to Xray 🚀')
-		} catch {
-			throw new Error('⛔ unable to post Xray results')
+		} catch (error) {
+			throw diagnostic('⛔ unable to post Xray results', error)
 		}
 	}
 
@@ -257,9 +261,7 @@ export default class XrayReporter implements Reporter {
 					`${this.stringify(this.fullTestResult)}`
 				)
 			} catch (error) {
-				return console.error(
-					new Error(`⛔ unable to save Xray ${this.options.outputFilename} report`, { cause: error })
-				)
+				return console.error(diagnostic(`⛔ unable to save Xray ${this.options.outputFilename} report`, error))
 			}
 
 		if (process.env[Xray.stopPostingResults])
@@ -271,7 +273,7 @@ export default class XrayReporter implements Reporter {
 				await this.authenticate()
 				await this.postFullResult()
 			} catch (error) {
-				console.error(new Error('⛔ unable to upload Xray report', { cause: error }))
+				console.error(diagnostic('⛔ unable to upload Xray report', error))
 			}
 	}
 }

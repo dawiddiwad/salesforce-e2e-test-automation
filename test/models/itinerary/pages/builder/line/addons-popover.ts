@@ -1,6 +1,6 @@
 import { Page, expect } from '@playwright/test'
 import { SalesforcePage } from '../../../../../../src/models/pages/salesforce-page'
-import { step } from '../../../../../runners/custom-test-runner'
+import { step } from '../../../../../../src/runners/step'
 import { AddOn } from '../../../types/tab-builder'
 import { Quote } from '../../../types/quote'
 

@@ -3,7 +3,7 @@ import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
 import { faker } from '@faker-js/faker'
 import { GeneralNamingPolicy } from '../../../../policies/general'
 import { Channel } from '../../types/itinerary'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 
 export class ItineraryRecordEditPage extends SalesforcePage {
 	private readonly frames = {

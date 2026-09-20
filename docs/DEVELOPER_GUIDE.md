@@ -15,7 +15,8 @@
 7. [Test Fixtures](#test-fixtures)
 8. [Test Data & Policies](#test-data--policies)
 9. [Custom Reporter (Xray)](#custom-reporter-xray)
-10. [Conventions & Best Practices](#conventions--best-practices)
+10. [Error Propagation](#error-propagation)
+11. [Conventions & Best Practices](#conventions--best-practices)
 
 ---
 
@@ -60,10 +61,12 @@ root/
 │   │   └── salesforce/           # SF REST API (RestApiHandler)
 │   ├── authorization/            # Auth strategies
 │   ├── cli/                      # Salesforce CLI wrapper
+│   ├── errors/                   # Secret redaction + diagnostic() wrapper
 │   ├── models/                   # Base abstractions
 │   │   ├── pages/                # SalesforcePage base class
 │   │   ├── services/             # SalesforceService base class
 │   │   └── types.ts              # Core types
+│   ├── runners/                  # @step decorator (framework-side, no fixture imports)
 │   └── users/                    # User context management
 │
 ├── test/                         # Specific Test Context implementation
@@ -106,23 +109,57 @@ The framework uses Salesforce CLI for authentication - no credentials stored in 
 - **UI Auth**: Session cookie (`sid`) injected into browser context
 - **API Auth**: Access token passed to jsforce `Connection`
 
+Both steps are resolved **once per worker**, not once per fixture per test.
+`SalesforceCliAuthenticator.shared()` memoises the `sf org display` invocation for the lifetime
+of the process, and `custom-test-runner.ts` exposes it as a worker-scoped fixture alongside the
+authenticated `RestApiHandler`. Before this, a test declaring `{ ui, api }` spawned the
+Salesforce CLI twice and `{ actor, ui, api }` spawned it three times. A failed lookup is
+deliberately not cached, so one transient CLI failure cannot poison the rest of the worker.
+
 ### The `@step` Decorator
 
 All public methods in pages/services should use `@step` for automatic Playwright reporting:
 
 ```typescript
-import { step } from '../../../test/runners/custom-test-runner'
+import { step } from '../../../src/runners/step'
 
 export class MyPage extends SalesforcePage {
 	@step
-	async doSomething(param: string) {
-		// This appears in Playwright report as:
-		// "MyPage > Do Something"
-	}
+	async openTab(name: string) {}
 }
+
+await new MyPage(page).openTab('Builder')
 ```
 
-The decorator auto-formats class and method names into readable steps. Arguments are deliberately omitted: they may contain credentials, personal data or raw Apex. It also enables **boxed steps** in traces for cleaner debugging. Do not add raw request payloads or credential-bearing error responses to step titles or logs. Authentication, Salesforce API, CLI, IMAP and Xray HTTP failures intentionally omit raw upstream diagnostics and causes; Apex failures retain only compilation status and numeric source locations. Non-sensitive UI and service wrappers preserve the original error through `Error.cause`. Investigate detailed server errors in an appropriately secured environment instead of publishing them in test artifacts.
+Reported as `MyPage > Open Tab : Builder`.
+
+The decorator auto-formats class and method names, appends the call arguments, and enables
+**boxed steps** in traces for cleaner debugging. Arguments are included because `Open Tab :
+Builder` localises a failure in a way that `Open Tab` does not — which is most of what a step
+is worth in a report.
+
+**Argument formatting**
+
+| Argument                | Rendered as         |
+| ----------------------- | ------------------- |
+| primitive               | `String(arg)`       |
+| array                   | `[Europe, Asia]`    |
+| object                  | pretty-printed JSON |
+| `undefined`             | `any`               |
+| cyclic / unserializable | `[object Object]`   |
+
+A cyclic or `toJSON`-throwing argument degrades to its string form rather than failing the step
+it was meant to describe.
+
+**When not to decorate**
+
+Step titles are passed through the redactor, so credentials registered via `secrets.register()`
+are masked — an Apex body carrying a registered client secret reports as
+`Execute Apex : String clientSecret = '«redacted»';`. Unregistered values appear verbatim.
+
+Leave a method undecorated when its arguments are genuinely sensitive and cannot be registered,
+or when they are large enough to make the report unreadable. That is the intended escape hatch;
+the default is to show them.
 
 ### Fluent Interface Pattern
 
@@ -254,7 +291,7 @@ await test.step('create person account', async () => {
 ```typescript
 import { expect } from '@playwright/test'
 import { SalesforcePage } from '../../../../src/models/pages/salesforce-page'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
 
 export class MyFeaturePage extends SalesforcePage {
 	// 1. Define locators as private readonly properties
@@ -331,7 +368,7 @@ export const allSalesforcePages = (page: Page) =>
 ```typescript
 import { Record } from 'jsforce'
 import { SalesforceService } from '../../../../src/models/services/salesforce-service'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
 
 export class MyFeatureService extends SalesforceService {
 	@step
@@ -394,20 +431,31 @@ The test runner (`test/runners/custom-test-runner.ts`) merges multiple fixtures:
 ```typescript
 import { mergeTests, test as base } from '@playwright/test'
 
-// UI Fixture - provides ui.* methods
-const testSalesforceUiCatalog = base.extend<SalesforcePageObjectModel<SalesforcePages>>({
-	ui: async ({ page }, use) => {
-		const actor = await new DefaultSalesforceCliUser().ready.then((user) => user.setUi(page))
-		return use({ ...allSalesforcePages(actor.ui) })
-	},
+// Worker-scoped authentication - one `sf org display` and one identity call per worker
+const withSalesforceAuth = base.extend<object, SalesforceWorkerFixtures>({
+	authenticator: [async ({}, use) => use(await SalesforceCliAuthenticator.shared()), { scope: 'worker' }],
+	salesforceApi: [async ({ authenticator }, use) => use(await authenticator.authenticateApi()), { scope: 'worker' }],
 })
 
-// API Fixture - provides api.* methods
-const testSalesforceApiCatalog = base.extend<SalesforceServiceObjectModel<SalesforceServices>>({
-	api: async ({}, use) => {
-		const actor = await new DefaultSalesforceCliUser().ready.then((user) => user.setApi('default'))
-		return use({ ...allSalesforceServices(actor.api) })
-	},
+// Actor Fixture - the worker's API context plus this test's authenticated page
+const testSalesforceDefaultActor = withSalesforceAuth.extend<{ actor: DefaultSalesforceCliUser }>({
+	actor: async ({ page, authenticator, salesforceApi }, use) =>
+		use(
+			await new DefaultSalesforceCliUser(authenticator).ready
+				.then((actor) => actor.setApi(salesforceApi))
+				.then((actor) => actor.setUi(page))
+		),
+})
+
+// UI Fixture - provides ui.* methods, derived from the actor
+const testSalesforceUiCatalog = testSalesforceDefaultActor.extend<SalesforcePageObjectModel<SalesforcePages>>({
+	ui: async ({ actor }, use) => use({ ...allSalesforcePages(actor.ui) }),
+})
+
+// API Fixture - provides api.* methods. Deliberately does not depend on `actor`,
+// so an API-only test never starts a browser.
+const testSalesforceApiCatalog = withSalesforceAuth.extend<SalesforceServiceObjectModel<SalesforceServices>>({
+	api: async ({ salesforceApi }, use) => use({ ...allSalesforceServices(salesforceApi) }),
 })
 
 // Merged export
@@ -418,6 +466,10 @@ export const test = mergeTests(
 	testEmailApiCatalog
 )
 ```
+
+Fixture scope matters for cost: `authenticator` and `salesforceApi` are `worker`-scoped, so
+their setup runs once per worker process. `ui`, `api` and `actor` stay test-scoped because they
+are cheap object graphs built over those shared handles.
 
 ### Using Raw Actor
 
@@ -519,6 +571,72 @@ Each `test.step()` maps to an Xray test step.
 
 ---
 
+## Error Propagation
+
+Every framework boundary wraps failures with `diagnostic()` from `src/errors/redaction.ts`:
+
+```typescript
+import { diagnostic } from '../../errors/redaction'
+
+try {
+	return await this.connection.create(sobjectApiName, data, { allOrNone: true })
+} catch (error) {
+	throw diagnostic('unable to create Salesforce record', error)
+}
+```
+
+This produces a stable, argument-free message for the report, with the **redacted** upstream
+error retained as `Error.cause`. The distinction matters: `unable to create Salesforce record`
+alone cannot tell you whether a 40-minute regression hit a product bug or stale test data —
+`FIELD_CUSTOM_VALIDATION_EXCEPTION: Start date must precede end date` can.
+
+### What gets masked
+
+One mechanism, applied to every message and stack in the retained chain: **registered
+literals**. Credentials are handed to `secrets.register()` at the point they are obtained — the
+access token and auth url in `SalesforceCliAuthenticator`, the IMAP password, the Xray client
+id, secret and bearer token, and the external-credential keys read out of the org. Each is then
+replaced wherever it later appears.
+
+The match is exact, so nothing else is touched. `INVALID_SESSION_ID: Session expired` and
+`MALFORMED_QUERY: unexpected token: SELCT` pass through untouched, because no diagnostic is ever
+compared against a guessed credential shape.
+
+**A credential that was never registered will survive into the cause.** This is a deliberate
+scope decision, not an oversight. Pattern matching on credential shapes — `Bearer` headers,
+`password=` pairs — was removed: it costs real diagnostics to false positives, and defends
+against secrets this framework never handles. The threat being managed is specific and known:
+the Salesforce access token, which `sf org display --json` returns and which jsforce echoes in
+session errors, must not ride along into the Jira evidence the Xray reporter uploads. Register
+at the source; do not reach for a regex.
+
+`test/unit/redaction.test.ts` asserts both directions — registered secrets masked, diagnostics
+preserved verbatim.
+
+### Where content is suppressed rather than redacted
+
+Two boundaries discard content instead, because literal redaction cannot cover them:
+
+- **Salesforce CLI JSON parsing.** `JSON.parse` echoes the input it failed on, and
+  `sf ... --json` output carries the access token. A truncated token prefix would not match the
+  registered literal, so the cause reports the _shape_ of the output (length, first character)
+  and never its content. This is the one place where exact-match redaction is not enough, and it
+  is handled by not emitting the content at all.
+- **Anonymous Apex failures.** Only validated compilation status and numeric source locations
+  are reported; `exceptionMessage` and `compileProblem` are attacker-influenced strings from the
+  org and are not propagated.
+
+### Enforcement
+
+`eslint.config.js` enables `preserve-caught-error`, which requires a rethrown error to carry its
+cause. On its own that rule is trivially bypassed by an optional catch binding —
+`catch { throw new Error(...) }` — which it cannot see. It is therefore paired with a
+`no-restricted-syntax` selector banning `CatchClause[param=null]`. A catch that genuinely
+swallows an error as control flow must disable the rule on the line and say why; there are two
+such sites in the repository.
+
+---
+
 ## Conventions & Best Practices
 
 ### ✅ DO
@@ -597,7 +715,7 @@ test/models/{new-domain}/
 
 - TypeScript is kept on `~6.0.3`: `typescript-eslint` 8.70.0 supports TypeScript below 6.1, not the latest TypeScript 7 release.
 - `@types/node` stays on the latest 24.x release to match the runtime, rather than exposing Node 26 APIs.
-- ESLint 10's `preserve-caught-error` rule is enabled. Non-sensitive wrappers retain `{ cause: error }`. Authentication and credential-bearing boundaries use deliberate parameterless catches and safe messages, without retaining raw errors or response bodies; the rule's default `requireCatchParameter: false` permits this.
+- ESLint 10's `preserve-caught-error` rule is enabled, paired with a `no-restricted-syntax` ban on optional catch bindings so the rule cannot be bypassed by `catch { ... }`. See [Error Propagation](#error-propagation).
 - The `utf7` dependency used by IMAP pins vulnerable `semver` 5.3 internally. The scoped override selects patched `semver` 5.7.2 without changing its major version.
 - The latest JSforce 3.10.25 still depends on `csv-parse` 5.x. `npm audit` reports two moderate entries for this chain. Do not apply its proposed downgrade to JSforce 1.6.5 or force a CSV parser major override without integration testing.
 

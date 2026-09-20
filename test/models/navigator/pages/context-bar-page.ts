@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test'
 import { SalesforcePage } from '../../../../src/models/pages/salesforce-page'
 import { SalesforceId } from '../../../../src/models/types'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
 import { Record } from 'jsforce'
 import { App, Tab } from '../types/navigator'
 

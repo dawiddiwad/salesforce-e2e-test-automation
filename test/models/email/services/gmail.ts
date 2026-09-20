@@ -1,6 +1,7 @@
 import { EmailService } from '../../../../src/models/services/email-service'
 import { ImapConfig, ImapHandler } from '../../../../src/api/email/imap-handler'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
+import { diagnostic } from '../../../../src/errors/redaction'
 
 export class GmailConfig {
 	static get local(): ImapConfig {
@@ -33,12 +34,12 @@ export class GmailService implements EmailService {
 			connected = true
 			await this.api.openBox('INBOX')
 			return await this.api.searchByTypeAndValue('TO', text)
-		} catch {
-			throw new Error('Unable to find Gmail inbox messages')
+		} catch (error) {
+			throw diagnostic('Unable to find Gmail inbox messages', error)
 		} finally {
 			if (connected) {
-				await this.api.disconnect().catch(() => {
-					throw new Error('Unable to disconnect Gmail session')
+				await this.api.disconnect().catch((error: unknown) => {
+					throw diagnostic('Unable to disconnect Gmail session', error)
 				})
 			}
 		}

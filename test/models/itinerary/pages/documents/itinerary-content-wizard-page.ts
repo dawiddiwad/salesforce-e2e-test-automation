@@ -1,7 +1,7 @@
 import { expect, FrameLocator, Page } from '@playwright/test'
 import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
 import { ItineraryContentManager } from './content-manager'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 import { ItineraryCustomerPreviewPage } from './customer-preview-page'
 
 type Stage = 'Content Settings' | 'Package Content Settings' | 'Train Details' | 'Your Destination(s)'

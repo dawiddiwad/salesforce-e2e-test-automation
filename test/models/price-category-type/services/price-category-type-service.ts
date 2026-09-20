@@ -1,6 +1,6 @@
 import { Record } from 'jsforce'
 import { SalesforceService } from '../../../../src/models/services/salesforce-service'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
 
 export class PriceCategoryTypeService extends SalesforceService {
 	private async updateByLabel(label: string, data: Record) {

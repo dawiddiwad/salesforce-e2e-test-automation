@@ -1,6 +1,6 @@
 import { FrameLocator, Page, expect } from '@playwright/test'
 import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 import { SpecificProjectNamingPolicy } from '../../../../policies/specific-project'
 
 export class ItineraryEmailComposerPage extends SalesforcePage {

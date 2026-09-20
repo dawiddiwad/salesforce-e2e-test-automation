@@ -1,7 +1,8 @@
 import { Record } from 'jsforce'
 import { SalesforceService } from '../../../../src/models/services/salesforce-service'
 import { SalesforceId } from '../../../../src/models/types'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
+import { diagnostic } from '../../../../src/errors/redaction'
 import { expect } from '@playwright/test'
 
 export class UserSerivce extends SalesforceService {
@@ -16,8 +17,8 @@ export class UserSerivce extends SalesforceService {
 					Label: byLabel,
 				})
 				.run()) as Record[]
-		} catch {
-			throw new Error(`searching for permission sets ${byLabel}`)
+		} catch (error) {
+			throw diagnostic(`searching for permission sets ${byLabel}`, error)
 		}
 		expect(permissionSets.length, `there should be at least 1 permission set ${byLabel}`).toBeGreaterThanOrEqual(1)
 		return permissionSets
@@ -34,8 +35,8 @@ export class UserSerivce extends SalesforceService {
 				})
 				.run()) as Record[]
 			return permissionSetAssignments
-		} catch {
-			throw new Error(`searching for permission set assignments ${byLabel}`)
+		} catch (error) {
+			throw diagnostic(`searching for permission set assignments ${byLabel}`, error)
 		}
 	}
 
@@ -52,7 +53,7 @@ export class UserSerivce extends SalesforceService {
 			}
 			await this.api.create('PermissionSetAssignment', permissionSetAssignment)
 		} catch (error) {
-			throw new Error(`enabling permission set ${byLabel}`, { cause: error })
+			throw diagnostic(`enabling permission set ${byLabel}`, error)
 		}
 	}
 
@@ -66,7 +67,7 @@ export class UserSerivce extends SalesforceService {
 				await this.api.delete('PermissionSetAssignment', assignment.Id as SalesforceId)
 			}
 		} catch (error) {
-			throw new Error(`disabling permission set ${byLabel}`, { cause: error })
+			throw diagnostic(`disabling permission set ${byLabel}`, error)
 		}
 	}
 }

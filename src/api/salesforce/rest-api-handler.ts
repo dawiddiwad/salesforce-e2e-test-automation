@@ -1,6 +1,7 @@
 import { Connection, QueryResult, Record, SaveResult, Schema, SObjectInputRecord, SObjectNames } from 'jsforce'
 import { ExecuteAnonymousResult } from 'jsforce/lib/api/tooling'
-import { step } from '../../../test/runners/custom-test-runner'
+import { step } from '../../runners/step'
+import { diagnostic, secrets } from '../../errors/redaction'
 
 export type RestHandlerCredentials = {
 	accessToken: string
@@ -22,6 +23,7 @@ export class RestApiHandler {
 		if (apiVersion) {
 			this.apiVersion = apiVersion
 		}
+		secrets.register(credentials.accessToken)
 		try {
 			this.connection = new Connection({
 				instanceUrl: credentials.instanceUrl.origin.toString(),
@@ -31,11 +33,11 @@ export class RestApiHandler {
 			this.ready = this.connection
 				.identity()
 				.then(() => this)
-				.catch(() => {
-					throw new Error('unable to authenticate Salesforce Rest API')
+				.catch((error: unknown) => {
+					throw diagnostic('unable to authenticate Salesforce Rest API', error)
 				})
-		} catch {
-			throw new Error('unable to authenticate Salesforce Rest API')
+		} catch (error) {
+			throw diagnostic('unable to authenticate Salesforce Rest API', error)
 		}
 	}
 
@@ -43,8 +45,8 @@ export class RestApiHandler {
 	async create(sobjectApiName: SObjectNames<Schema>, data: SObjectInputRecord<Schema, string>): Promise<SaveResult> {
 		try {
 			return await this.connection.create(sobjectApiName, data, { allOrNone: true })
-		} catch {
-			throw new Error('unable to create Salesforce record')
+		} catch (error) {
+			throw diagnostic('unable to create Salesforce record', error)
 		}
 	}
 
@@ -52,8 +54,8 @@ export class RestApiHandler {
 	async read(sobjectApiName: SObjectNames<Schema>, recordId: string): Promise<Record> {
 		try {
 			return await this.connection.retrieve(sobjectApiName, recordId)
-		} catch {
-			throw new Error('unable to read Salesforce record')
+		} catch (error) {
+			throw diagnostic('unable to read Salesforce record', error)
 		}
 	}
 
@@ -61,8 +63,8 @@ export class RestApiHandler {
 	async update(sobjectApiName: SObjectNames<Schema>, data: Record): Promise<SaveResult | SaveResult[]> {
 		try {
 			return await this.connection.update(sobjectApiName, data, { allOrNone: true })
-		} catch {
-			throw new Error('unable to update Salesforce record')
+		} catch (error) {
+			throw diagnostic('unable to update Salesforce record', error)
 		}
 	}
 
@@ -70,8 +72,8 @@ export class RestApiHandler {
 	async delete(sobjectApiName: SObjectNames<Schema>, recordId: string): Promise<SaveResult> {
 		try {
 			return await this.connection.delete(sobjectApiName, recordId)
-		} catch {
-			throw new Error('unable to delete Salesforce record')
+		} catch (error) {
+			throw diagnostic('unable to delete Salesforce record', error)
 		}
 	}
 
@@ -80,8 +82,8 @@ export class RestApiHandler {
 		let queryResult: QueryResult<Record[]>
 		try {
 			queryResult = await this.connection.query<Record[]>(soql)
-		} catch {
-			throw new Error('failed running Salesforce SOQL query')
+		} catch (error) {
+			throw diagnostic('failed running Salesforce SOQL query', error)
 		}
 		if (!queryResult.records.length && !acceptEmptyResult) {
 			throw new EmptyQueryResultError('no records returned by Salesforce SOQL query')
@@ -94,8 +96,8 @@ export class RestApiHandler {
 		let result: ExecuteAnonymousResult
 		try {
 			result = await this.connection.tooling.executeAnonymous(apexBody)
-		} catch {
-			throw new Error('failed executing anonymous Apex')
+		} catch (error) {
+			throw diagnostic('failed executing anonymous Apex', error)
 		}
 		if (!result.success) {
 			const metadata: string[] = []

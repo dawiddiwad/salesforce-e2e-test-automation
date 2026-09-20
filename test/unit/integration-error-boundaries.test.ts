@@ -2,12 +2,26 @@ import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import { test, type TestContext } from 'node:test'
 import { inspect } from 'node:util'
-import { test as reportingTest } from '../runners/custom-test-runner'
+import { test as reportingTest } from '@playwright/test'
 import { ImapHandler } from '../../src/api/email/imap-handler'
 import XrayReporter from '../reporters/xray/xray-reporter'
+import { secrets } from '../../src/errors/redaction'
 
 const secret = 'synthetic-boundary-secret'
-const rawFailure = () => Object.assign(new Error(secret, { cause: new Error(secret) }), { password: secret })
+const diagnosticText = 'ECONNRESET while reading greeting'
+
+/**
+ * Registered the way `ImapHandler` and `XrayReporter` register their own credentials at
+ * construction time. These tests build both via `Object.create`, bypassing that.
+ */
+secrets.register(secret)
+
+/**
+ * An upstream failure that mixes a credential with the diagnostic worth keeping, so each
+ * assertion can check both halves: the secret is masked, the diagnostic survives.
+ */
+const rawFailure = () =>
+	Object.assign(new Error(`${diagnosticText} (${secret})`, { cause: new Error(secret) }), { password: secret })
 
 function captureSteps(t: TestContext) {
 	const errors: unknown[] = []
@@ -22,11 +36,24 @@ function captureSteps(t: TestContext) {
 	return errors
 }
 
+/**
+ * The boundary contract: a stable argument-free message for the report, a retained cause for
+ * debugging, no credential anywhere in the chain.
+ */
 function assertSanitized(error: unknown, message: string) {
 	assert.ok(error instanceof Error)
 	assert.equal(error.message, message)
-	assert.equal(error.cause, undefined)
-	assert.ok(!inspect(error, { depth: null }).includes(secret))
+	assert.ok(!inspect(error, { depth: null }).includes(secret), `${message} leaked a registered credential`)
+	return true
+}
+
+/** As above, and additionally requires the upstream diagnostic to have survived. */
+function assertSanitizedWithCause(error: unknown, message: string) {
+	assertSanitized(error, message)
+	const cause = (error as Error).cause
+	assert.ok(cause instanceof Error, `${message} must retain its upstream cause`)
+	assert.ok(cause.message.includes(diagnosticText), `${message} must retain the upstream diagnostic`)
+	assert.equal((cause as Error & { password?: string }).password, undefined)
 	return true
 }
 
@@ -61,10 +88,10 @@ for (const synchronous of [false, true]) {
 				disconnect: { run: () => handler.disconnect(), message: 'Unable to disconnect from IMAP server' },
 			}
 			await assert.rejects(operations[operation].run(), (error) =>
-				assertSanitized(error, operations[operation].message)
+				assertSanitizedWithCause(error, operations[operation].message)
 			)
 			assert.equal(errors.length, 1)
-			assertSanitized(errors[0], operations[operation].message)
+			assertSanitizedWithCause(errors[0], operations[operation].message)
 		})
 	}
 }
@@ -99,7 +126,9 @@ for (const operation of ['login', 'upload'] as const) {
 				return { ok: () => false, json: () => assert.fail('error body must not be read') }
 			})
 			const message = operation === 'login' ? '⛔ unable to authenticate Xray' : '⛔ unable to post Xray results'
-			await assert.rejects(reporter[operation](), (error) => assertSanitized(error, message))
+			await assert.rejects(reporter[operation](), (error) =>
+				failure === 'transport' ? assertSanitizedWithCause(error, message) : assertSanitized(error, message)
+			)
 		})
 	}
 }

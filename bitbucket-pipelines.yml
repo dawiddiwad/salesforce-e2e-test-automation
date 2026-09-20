@@ -28,7 +28,7 @@ definitions:
                   - npm ci
                   - npm run validation:check
                   - npx playwright install --with-deps chromium
-                  - npm install -g @salesforce/cli@latest
+                  - npm install -g @salesforce/cli@2.150.6
                   - printf '%s\n' "$TARGET_ORG_SFDX_URL" | sf org login sfdx-url --set-default --no-prompt --sfdx-url-stdin
                   - $RUN_TESTS_CLI_COMMAND
               artifacts:

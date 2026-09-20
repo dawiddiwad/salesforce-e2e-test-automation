@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { test as reportingTest } from '../runners/custom-test-runner'
+import { test as reportingTest } from '@playwright/test'
 import { SobjectRecordActions } from '../../src/api/salesforce/record-actions'
 import { EmptyQueryResultError, RestApiHandler } from '../../src/api/salesforce/rest-api-handler'
 import { SobjectRecordComparator, type CompareMap } from '../../src/api/salesforce/record-comparator'

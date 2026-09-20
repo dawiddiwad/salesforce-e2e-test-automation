@@ -3,7 +3,7 @@
 .sfdx
 .vscode
 force-app
-.DS_STORE
+.DS_Store
 test-reports
 test-results
 node_modules

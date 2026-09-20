@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test'
 import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
 import { PriceLinesColumn as PriceLinesColumns } from '../../types/tab-costings'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 
 export class ItineraryPriceLinePage extends SalesforcePage {
 	private readonly lineIndex: number

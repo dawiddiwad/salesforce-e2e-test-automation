@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
 import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 import { Location } from '../../types/tab-builder'
 import { ItineraryBuilderLinePage } from './line/builder-line-page'
 

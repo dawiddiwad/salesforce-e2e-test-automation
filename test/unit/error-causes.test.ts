@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 import type { Page } from '@playwright/test'
-import { test as reportingTest } from '../runners/custom-test-runner'
+import { test as reportingTest } from '@playwright/test'
 import { SalesforcePage } from '../../src/models/pages/salesforce-page'
 
 beforeEach((t) => {

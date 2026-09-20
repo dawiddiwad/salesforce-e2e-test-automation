@@ -1,9 +1,9 @@
 import { Page } from '@playwright/test'
 import { RestApiHandler } from '../api/salesforce/rest-api-handler'
 import { SalesforceCliAuthenticator } from '../authorization/salesforce-cli-authenticator'
-import { SalesforceCliHandler } from '../cli/salesforce-cli-handler'
 import { SalesforceBackendUser, SalesforceFrontendUser } from './salesforce-users'
-import { step } from '../../test/runners/custom-test-runner'
+import { step } from '../runners/step'
+import { diagnostic } from '../errors/redaction'
 
 export class DefaultSalesforceCliUser implements SalesforceBackendUser, SalesforceFrontendUser {
 	private authHandler!: SalesforceCliAuthenticator
@@ -11,14 +11,19 @@ export class DefaultSalesforceCliUser implements SalesforceBackendUser, Salesfor
 	ui!: Page
 	api!: RestApiHandler
 
-	constructor() {
-		this.ready = new SalesforceCliAuthenticator(new SalesforceCliHandler()).ready
+	/**
+	 * @param authenticator an already-resolved authenticator to reuse. Omit it and the user
+	 * falls back to {@link SalesforceCliAuthenticator.shared}, so repeated construction inside
+	 * one worker still costs a single Salesforce CLI invocation.
+	 */
+	constructor(authenticator?: SalesforceCliAuthenticator | Promise<SalesforceCliAuthenticator>) {
+		this.ready = Promise.resolve(authenticator ?? SalesforceCliAuthenticator.shared())
 			.then((authHandler) => {
 				this.authHandler = authHandler
 				return this
 			})
-			.catch(() => {
-				throw new Error('unable to initialize default Salesforce CLI user')
+			.catch((error: unknown) => {
+				throw diagnostic('unable to initialize default Salesforce CLI user', error)
 			})
 	}
 

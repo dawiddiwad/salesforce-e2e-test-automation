@@ -1,4 +1,4 @@
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
 import { CustomSettingsService } from './custom-settings-service'
 
 export class UserOverridesService extends CustomSettingsService {

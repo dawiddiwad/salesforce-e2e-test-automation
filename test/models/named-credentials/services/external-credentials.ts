@@ -1,6 +1,7 @@
 import { SalesforceService } from '../../../../src/models/services/salesforce-service'
 import { Record } from 'jsforce'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
+import { diagnostic, secrets } from '../../../../src/errors/redaction'
 
 export type Credential = {
 	name: string
@@ -68,12 +69,16 @@ export class ExternalCredentialsService extends SalesforceService {
 			const connection = await this.api
 				.query(TestAPIConnectionSoql)
 				.then((result) => (result.records as Record[])[0])
+			secrets.register(
+				connection.PackageNamespace__AccessKey__c as string,
+				connection.PackageNamespace__SecretKey__c as string
+			)
 			return {
 				accessKey: connection.PackageNamespace__AccessKey__c,
 				secretKey: connection.PackageNamespace__SecretKey__c,
 			}
-		} catch {
-			throw new Error('failed to get TestAPI connection config')
+		} catch (error) {
+			throw diagnostic('failed to get TestAPI connection config', error)
 		}
 	}
 
@@ -81,8 +86,8 @@ export class ExternalCredentialsService extends SalesforceService {
 	private async setPrincipal(credential: Credential) {
 		try {
 			await this.api.executeApex(setNamedPrincipalApex(credential))
-		} catch {
-			throw new Error('failed to set external credential principal')
+		} catch (error) {
+			throw diagnostic('failed to set external credential principal', error)
 		}
 	}
 
@@ -101,8 +106,8 @@ export class ExternalCredentialsService extends SalesforceService {
 				},
 			}
 			await this.setPrincipal(courierCredential)
-		} catch {
-			throw new Error('failed to setup Email Courier')
+		} catch (error) {
+			throw diagnostic('failed to setup Email Courier', error)
 		}
 	}
 }

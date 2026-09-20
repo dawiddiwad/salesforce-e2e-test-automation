@@ -1,5 +1,5 @@
 import { SalesforceService } from '../../../../src/models/services/salesforce-service'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
 
 export class LimitsService extends SalesforceService {
 	@step

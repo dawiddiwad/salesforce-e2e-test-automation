@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
 import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 
 export class ItineraryBuilderTemplateSearchPage extends SalesforcePage {
 	private readonly modal = this.page.locator('c-lwc-itinerary-template-search-modal')

@@ -1,5 +1,6 @@
 import { exec } from 'child_process'
 import stripAnsi from 'strip-ansi'
+import { diagnostic, secrets } from '../errors/redaction'
 
 export type CliCommand = {
 	command: string
@@ -25,13 +26,36 @@ export class SalesforceCliHandler {
 		return ignoredErrorMessages.some((message) => error.includes(message))
 	}
 
+	/**
+	 * `sf <command> --json` output carries the org access token, and a `JSON.parse` failure
+	 * echoes the input it choked on — including a prefix of that token, which literal
+	 * redaction cannot match. The cause therefore describes the shape of the output rather
+	 * than any of its content.
+	 */
 	private parseOutputAsJSON(output: string): Record<string, unknown> {
+		const cleaned = stripAnsi(output)
 		try {
-			output = stripAnsi(output)
-			return JSON.parse(output)
-		} catch {
-			throw new Error('failed parsing Salesforce CLI JSON output')
+			return JSON.parse(cleaned)
+		} catch (error) {
+			const leadingCharacter = JSON.stringify(cleaned.slice(0, 1))
+			const parserName = error instanceof Error ? error.name : 'unknown error'
+			throw diagnostic(
+				'failed parsing Salesforce CLI JSON output',
+				new Error(
+					`${parserName}: expected JSON, received ${cleaned.length} characters beginning with ${leadingCharacter}`
+				)
+			)
 		}
+	}
+
+	/**
+	 * Salesforce CLI reports the actionable part of a failure on stderr — `No authorization
+	 * information found`, `This org appears to have a problem with its OAuth configuration`.
+	 * It is retained as a redacted cause: the CLI also echoes auth urls and tokens there,
+	 * which {@link secrets} masks.
+	 */
+	private stderrCause(stderr: string): Error {
+		return new Error(secrets.redact(stripAnsi(stderr).trim()))
 	}
 
 	public async runCommand({ command, flags, log }: CliCommand): Promise<Record<string, unknown> | string> {
@@ -44,21 +68,26 @@ export class SalesforceCliHandler {
 				exec(compiledArguments, (error, stdout, stderr) => {
 					if (error) {
 						const exitCode = Number.isSafeInteger(error.code) ? ` (exit code ${error.code})` : ''
-						reject(new Error(`Salesforce CLI execution failed${exitCode}`))
+						reject(
+							diagnostic(
+								`Salesforce CLI execution failed${exitCode}`,
+								stderr ? this.stderrCause(stderr) : error
+							)
+						)
 					} else if (stderr && !this.ignored(stderr)) {
-						reject(new Error('Salesforce CLI reported an error on stderr'))
+						reject(diagnostic('Salesforce CLI reported an error on stderr', this.stderrCause(stderr)))
 					} else if (!stdout) {
 						reject(new Error('missing output from Salesforce CLI command'))
 					} else {
 						try {
 							resolve(flags?.includes('--json') ? this.parseOutputAsJSON(stdout) : stdout)
-						} catch {
-							reject(new Error('failed parsing Salesforce CLI JSON output'))
+						} catch (error) {
+							reject(diagnostic('failed parsing Salesforce CLI JSON output', error))
 						}
 					}
 				})
-			} catch {
-				reject(new Error('failed starting Salesforce CLI command'))
+			} catch (error) {
+				reject(diagnostic('failed starting Salesforce CLI command', error))
 			}
 		})
 	}

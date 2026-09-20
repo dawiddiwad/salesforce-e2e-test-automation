@@ -1,6 +1,7 @@
 import Imap from 'imap'
 import { EmailApiHandler } from './handler'
-import { step } from '../../../test/runners/custom-test-runner'
+import { step } from '../../runners/step'
+import { diagnostic, secrets } from '../../errors/redaction'
 
 export type ImapConfig = {
 	user: string
@@ -14,6 +15,7 @@ export class ImapHandler implements EmailApiHandler {
 	readonly api: Imap
 
 	constructor(config: ImapConfig) {
+		secrets.register(config.password)
 		try {
 			this.api = new Imap({
 				user: config.user,
@@ -23,8 +25,8 @@ export class ImapHandler implements EmailApiHandler {
 				tls: config.tls,
 				tlsOptions: { rejectUnauthorized: false },
 			})
-		} catch {
-			throw new Error('Unable to initialize IMAP connection')
+		} catch (error) {
+			throw diagnostic('Unable to initialize IMAP connection', error)
 		}
 	}
 
@@ -38,8 +40,8 @@ export class ImapHandler implements EmailApiHandler {
 				this.api.removeListener('error', reject)
 			})
 			this.api.connect()
-		}).catch(() => {
-			throw new Error('Unable to connect to IMAP server')
+		}).catch((error: unknown) => {
+			throw diagnostic('Unable to connect to IMAP server', error)
 		})
 	}
 
@@ -50,8 +52,8 @@ export class ImapHandler implements EmailApiHandler {
 				if (error) reject(error)
 				else resolve()
 			})
-		}).catch(() => {
-			throw new Error('Unable to open IMAP mailbox')
+		}).catch((error: unknown) => {
+			throw diagnostic('Unable to open IMAP mailbox', error)
 		})
 	}
 
@@ -64,8 +66,8 @@ export class ImapHandler implements EmailApiHandler {
 			})
 			this.api.once('error', reject)
 			this.api.end()
-		}).catch(() => {
-			throw new Error('Unable to disconnect from IMAP server')
+		}).catch((error: unknown) => {
+			throw diagnostic('Unable to disconnect from IMAP server', error)
 		})
 	}
 
@@ -76,8 +78,8 @@ export class ImapHandler implements EmailApiHandler {
 				if (error) reject(error)
 				else resolve(results)
 			})
-		}).catch(() => {
-			throw new Error('Unable to search IMAP mailbox')
+		}).catch((error: unknown) => {
+			throw diagnostic('Unable to search IMAP mailbox', error)
 		})
 	}
 }

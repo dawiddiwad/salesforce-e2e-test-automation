@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test'
 import { SalesforcePage } from '../../../../../../src/models/pages/salesforce-page'
 import { BookingWizardTab } from '../../../types/booking-wizard'
-import { step } from '../../../../../runners/custom-test-runner'
+import { step } from '../../../../../../src/runners/step'
 
 export abstract class BookingWizardTabPage extends SalesforcePage {
 	abstract readonly name: BookingWizardTab

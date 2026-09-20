@@ -1,5 +1,5 @@
 import { Record } from 'jsforce'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
 import { SalesforceService } from '../../../../src/models/services/salesforce-service'
 import { RecordType } from '../types/account'
 

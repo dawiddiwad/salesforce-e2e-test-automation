@@ -1,7 +1,7 @@
 import { Record } from 'jsforce'
 import { SalesforceService } from '../../../../src/models/services/salesforce-service'
 import { SalesforceId } from '../../../../src/models/types'
-import { step } from '../../../runners/custom-test-runner'
+import { step } from '../../../../src/runners/step'
 
 export class ItineraryRecordService extends SalesforceService {
 	@step

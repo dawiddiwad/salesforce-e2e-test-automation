@@ -1,5 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test'
-import { step } from '../../../test/runners/custom-test-runner'
+import { step } from '../../runners/step'
 
 export abstract class SalesforcePage {
 	protected readonly page: Page
@@ -78,6 +78,7 @@ export abstract class SalesforcePage {
 				async () => expect(await this.spinners()).not.toHaveLength(0),
 				'wait for loading spinners to show up'
 			).toPass({ timeout: override?.showupTimeout ?? 1000 })
+			// eslint-disable-next-line no-restricted-syntax -- control flow, not a failure: no spinner appeared in the window, so there is nothing to wait out
 		} catch {
 			return
 		}

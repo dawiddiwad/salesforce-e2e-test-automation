@@ -1,5 +1,5 @@
 import { expect, Page, FrameLocator } from '@playwright/test'
-import { step } from '../../../../runners/custom-test-runner'
+import { step } from '../../../../../src/runners/step'
 import { SalesforcePage } from '../../../../../src/models/pages/salesforce-page'
 import { ItineraryContentManager } from './content-manager'
 import { ItineraryContentWizard } from './itinerary-content-wizard-page'
