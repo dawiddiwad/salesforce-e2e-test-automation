@@ -51,24 +51,9 @@ export function step<This, Args extends unknown[], Return>(
 		const formatMethodName = (name: string) =>
 			name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^([a-z])/, (match) => match.toUpperCase())
 
-		const formatMethodArguments = (args: unknown[]) =>
-			args
-				.map((arg) => {
-					if (Array.isArray(arg)) {
-						return `[${arg.join(', ')}]`
-					} else if (typeof arg === 'object' && arg !== null) {
-						return JSON.stringify(arg, null, 2)
-					} else {
-						return String(arg)
-					}
-				})
-				.join(', ')
-				.replaceAll(String(undefined), 'any')
-
 		const methodName = formatMethodName(String(context.name))
-		const formattedArguments = args.length ? ` : ${formatMethodArguments(args)}` : ''
 		const className = (this as object).constructor.name
-		const stepName = `${className} > ${methodName}${formattedArguments}`
+		const stepName = `${className} > ${methodName}`
 
 		return test.step(stepName, async () => target.call(this, ...args), { box: true }) as Return
 	}

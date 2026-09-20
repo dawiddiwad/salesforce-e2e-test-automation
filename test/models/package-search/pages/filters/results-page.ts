@@ -5,6 +5,6 @@ import { PackageSearchResultsRow } from './results-row'
 export class PackageSearchResultsPage extends SalesforcePage {
 	@step
 	async selectRow(rowNumber: number) {
-		return new PackageSearchResultsRow(this.page, --rowNumber).ready
+		return new PackageSearchResultsRow(this.page, rowNumber - 1).ready
 	}
 }

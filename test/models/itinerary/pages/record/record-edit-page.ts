@@ -82,10 +82,8 @@ export class ItineraryRecordEditPage extends SalesforcePage {
 			await expect(this.page, 'changes are saved with no errors').not.toHaveURL(/new/)
 			await expect(this.page, 'page is redirected to record view').toHaveURL(/view/)
 		} catch (error) {
-			const matcherResult = (error as { matcherResult?: { log: string[] } }).matcherResult
-			throw new Error(
-				`saving new Itinerary record due to\n${await this.getToastAlerts(this.formNewRecord.alert)}\n${matcherResult ? matcherResult.log.join('\n') : error}`
-			)
+			const alerts = await this.getToastAlerts(this.formNewRecord.alert).catch(() => '')
+			throw new Error(`saving new Itinerary record${alerts ? `\n${alerts}` : ''}`, { cause: error })
 		}
 	}
 

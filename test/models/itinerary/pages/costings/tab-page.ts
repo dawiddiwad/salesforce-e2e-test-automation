@@ -41,13 +41,15 @@ export class ItineraryCostingsTabPage extends SalesforcePage {
 	@step
 	async toggleLockSellPrice() {
 		const initialState = await this.getLockSellPriceState()
-		await this.checkbox.lockSellPrice.check()
-		expect(this.checkbox.lockSellPrice.isChecked, 'Lock Sell Price checkbox was toggled').not.toBe(initialState)
+		await this.checkbox.lockSellPrice.setChecked(!initialState)
+		await expect(this.checkbox.lockSellPrice, 'Lock Sell Price checkbox was toggled').toBeChecked({
+			checked: !initialState,
+		})
 	}
 
 	@step
 	async getCostingsLine(number: number): Promise<ItineraryCostingsLinePage> {
-		return new ItineraryCostingsLinePage(this.page, --number).ready
+		return new ItineraryCostingsLinePage(this.page, number - 1).ready
 	}
 
 	@step

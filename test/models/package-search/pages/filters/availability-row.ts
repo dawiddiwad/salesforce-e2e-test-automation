@@ -11,7 +11,7 @@ export class PackageSearchAvailabilityRow extends SalesforcePage {
 		this.rowIndex = rowIndex
 		this.ready = expect(
 			this.table.row.container(),
-			`package search availabilty results row ${++rowIndex} should be visible`
+			`package search availabilty results row ${rowIndex + 1} should be visible`
 		)
 			.toBeVisible({ timeout: 5000 })
 			.then(() => this)

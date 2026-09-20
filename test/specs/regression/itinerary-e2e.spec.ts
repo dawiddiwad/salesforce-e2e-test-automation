@@ -30,34 +30,29 @@ test.describe.parallel('e2e suite', async () => {
 		})
 
 		await test.step('check tabs and fields', async () => {
-			const tabVisibilityChecks = [
-				expect
-					.soft(await ui.itinerary.record.details.getTab('Details'), 'check Details tab is visible')
-					.toBeVisible(),
-				expect
-					.soft(await ui.itinerary.record.details.getTab('Builder'), 'check Builder tab is visible')
-					.toBeVisible(),
-				expect
-					.soft(await ui.itinerary.record.details.getTab('Bookings'), 'check Bookings tab is visible')
-					.toBeVisible(),
-			]
-
-			const fieldValueChecks = [
-				expect
-					.soft(await ui.itinerary.record.details.getBookingStatus(), 'check Booking status')
-					.toEqual(<BookingStatus>'Unconfirmed'),
-				expect
-					.soft(await ui.itinerary.record.details.getRecordType(), 'check Record Type')
-					.toEqual(<RecordType>'Quote'),
-				expect
-					.soft(await ui.itinerary.record.details.getNameOnBooking(), 'check Name on Booking')
-					.toEqual(shared.contactName),
-			]
-
-			await expect(
-				async () => await Promise.all([...tabVisibilityChecks, ...fieldValueChecks]),
-				'itinerary should have correct data'
-			).toPass({ timeout: 2 * 60000 })
+			await expect(async () => {
+				await expect(
+					await ui.itinerary.record.details.getTab('Details'),
+					'check Details tab is visible'
+				).toBeVisible()
+				await expect(
+					await ui.itinerary.record.details.getTab('Builder'),
+					'check Builder tab is visible'
+				).toBeVisible()
+				await expect(
+					await ui.itinerary.record.details.getTab('Bookings'),
+					'check Bookings tab is visible'
+				).toBeVisible()
+				expect(await ui.itinerary.record.details.getBookingStatus(), 'check Booking status').toEqual(
+					<BookingStatus>'Unconfirmed'
+				)
+				expect(await ui.itinerary.record.details.getRecordType(), 'check Record Type').toEqual(
+					<RecordType>'Quote'
+				)
+				expect(await ui.itinerary.record.details.getNameOnBooking(), 'check Name on Booking').toEqual(
+					shared.contactName
+				)
+			}, 'itinerary should have correct data').toPass({ timeout: 2 * 60000 })
 		})
 
 		await test.step('open builder tab and set primary locations', async () => {
@@ -169,7 +164,7 @@ test.describe.parallel('e2e suite', async () => {
 		})
 
 		await test.step('compare amendment data with primary booking', async () => {
-			ui.itinerary.record.details
+			await ui.itinerary.record.details
 				.using(actor.api)
 				.map(childRecords)
 				.compare(shared.primaryRecords, shared.amendmentRecords)
@@ -195,10 +190,10 @@ test.describe.parallel('e2e suite', async () => {
 		})
 
 		await test.step('compare primary booking with amendment', async () => {
-			ui.itinerary.record.details
+			await ui.itinerary.record.details
 				.using(actor.api)
 				.map(childRecords)
-				.compare(shared.primaryRecords, shared.amendmentRecords)
+				.compare(shared.amendmentRecords, shared.primaryRecords)
 		})
 	})
 })

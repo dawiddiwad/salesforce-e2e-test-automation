@@ -1,4 +1,4 @@
-import { expect, Page } from '@playwright/test'
+import { Page } from '@playwright/test'
 import { RestApiHandler } from '../api/salesforce/rest-api-handler'
 import { SalesforceCliHandler } from '../cli/salesforce-cli-handler'
 import { step } from '../../test/runners/custom-test-runner'
@@ -31,7 +31,11 @@ export class SalesforceCliAuthenticator {
 
 	constructor(cliHandler: SalesforceCliHandler) {
 		this.cli = cliHandler
-		this.ready = this.setTargetOrg().then(() => this)
+		this.ready = this.setTargetOrg()
+			.then(() => this)
+			.catch(() => {
+				throw new Error('failed loading connected Salesforce CLI target org')
+			})
 	}
 
 	private async setTargetOrg() {
@@ -39,7 +43,9 @@ export class SalesforceCliAuthenticator {
 			command: 'org display',
 			flags: ['--verbose', '--json'],
 		})) as TargetOrg
-		expect(this.targetOrg.result.connectedStatus, 'the default target org should be connected').toBe('Connected')
+		if (this.targetOrg.result.connectedStatus !== 'Connected') {
+			throw new Error('the default Salesforce CLI target org is not connected')
+		}
 	}
 
 	private getAccessToken(): string {
@@ -57,8 +63,8 @@ export class SalesforceCliAuthenticator {
 				accessToken: this.getAccessToken(),
 				instanceUrl: this.getInstanceUrl(),
 			}).ready
-		} catch (error) {
-			throw new Error(`failed authenticating api context due to:\n${error}`)
+		} catch {
+			throw new Error('failed authenticating Salesforce API context')
 		}
 	}
 
@@ -73,8 +79,8 @@ export class SalesforceCliAuthenticator {
 				},
 			])
 			return page
-		} catch (error) {
-			throw new Error(`failed authenticating ui context due to:\n${error}`)
+		} catch {
+			throw new Error('failed authenticating Salesforce UI context')
 		}
 	}
 }

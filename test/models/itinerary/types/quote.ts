@@ -13,7 +13,7 @@ export class Quote {
 				} as Price
 			else throw new Error(`unable to parse Price using pattern ${this.pricePattern}`)
 		} catch (error) {
-			throw new Error(`parsing Price from ${text}\n${error}`)
+			throw new Error(`parsing Price from ${text}`, { cause: error })
 		}
 	}
 }

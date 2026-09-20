@@ -28,7 +28,7 @@ export default defineConfig({
 			testDir: './test/specs/specific-project',
 		},
 	],
-	outputDir: process.env.CI ? undefined : './test-reports/results',
+	outputDir: './test-reports/results',
 	reporter: [
 		['./test/reporters/xray/xray-reporter.ts', { outputFolder: './test-reports/xray' }],
 		['junit', { outputFile: './test-reports/junit/results.xml' }],

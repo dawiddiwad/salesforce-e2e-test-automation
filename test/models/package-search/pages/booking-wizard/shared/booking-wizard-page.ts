@@ -53,7 +53,8 @@ export abstract class BookingWizardTabPage extends SalesforcePage {
 				{ timeout: 2 * 60000 }
 			)
 		} catch (error) {
-			throw new Error(`creating new Itinerary\n${await this.getToastAlerts()}\n${error}`)
+			const alerts = await this.getToastAlerts().catch(() => '')
+			throw new Error(`creating new Itinerary${alerts ? `\n${alerts}` : ''}`, { cause: error })
 		}
 	}
 
@@ -68,7 +69,8 @@ export abstract class BookingWizardTabPage extends SalesforcePage {
 			await this.wizardOptionalAddonsModal.buttonContinue.click()
 			await expect(this.wizardSummary.container, 'booking wizard should be closed').not.toBeVisible()
 		} catch (error) {
-			throw new Error(`adding changes to Itinerary\n${await this.getToastAlerts()}\n${error}`)
+			const alerts = await this.getToastAlerts().catch(() => '')
+			throw new Error(`adding changes to Itinerary${alerts ? `\n${alerts}` : ''}`, { cause: error })
 		}
 	}
 

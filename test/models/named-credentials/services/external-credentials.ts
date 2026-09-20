@@ -72,8 +72,8 @@ export class ExternalCredentialsService extends SalesforceService {
 				accessKey: connection.PackageNamespace__AccessKey__c,
 				secretKey: connection.PackageNamespace__SecretKey__c,
 			}
-		} catch (error) {
-			throw new Error(`failed to get TestAPI connection config due to:\n${error}`)
+		} catch {
+			throw new Error('failed to get TestAPI connection config')
 		}
 	}
 
@@ -81,10 +81,8 @@ export class ExternalCredentialsService extends SalesforceService {
 	private async setPrincipal(credential: Credential) {
 		try {
 			await this.api.executeApex(setNamedPrincipalApex(credential))
-		} catch (error) {
-			throw new Error(
-				`failed to set principal ${credential.principal.name} for credential ${credential.name} due to:\n${error}`
-			)
+		} catch {
+			throw new Error('failed to set external credential principal')
 		}
 	}
 
@@ -103,8 +101,8 @@ export class ExternalCredentialsService extends SalesforceService {
 				},
 			}
 			await this.setPrincipal(courierCredential)
-		} catch (error) {
-			throw new Error(`failed to setup Email Courier due to:\n${error}`)
+		} catch {
+			throw new Error('failed to setup Email Courier')
 		}
 	}
 }

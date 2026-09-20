@@ -8,21 +8,19 @@ export class UserSerivce extends SalesforceService {
 	private readonly user = (): SalesforceId => this.api.connection.userInfo?.id as SalesforceId
 
 	private async getPermissionSets(byLabel?: string) {
+		let permissionSets: Record[]
 		try {
-			const permissionSets = (await this.api.connection
+			permissionSets = (await this.api.connection
 				.sobject('PermissionSet')
 				.find({
 					Label: byLabel,
 				})
 				.run()) as Record[]
-			expect(
-				permissionSets.length,
-				`there should be at least 1 permission set ${byLabel}`
-			).toBeGreaterThanOrEqual(1)
-			return permissionSets
-		} catch (error) {
-			throw new Error(`searching for permission sets ${byLabel}\n${error}`)
+		} catch {
+			throw new Error(`searching for permission sets ${byLabel}`)
 		}
+		expect(permissionSets.length, `there should be at least 1 permission set ${byLabel}`).toBeGreaterThanOrEqual(1)
+		return permissionSets
 	}
 
 	private async getPermissionSetAssignments(byLabel?: string) {
@@ -36,8 +34,8 @@ export class UserSerivce extends SalesforceService {
 				})
 				.run()) as Record[]
 			return permissionSetAssignments
-		} catch (error) {
-			throw new Error(`searching for permisson set assignments ${byLabel}\n${error}`)
+		} catch {
+			throw new Error(`searching for permission set assignments ${byLabel}`)
 		}
 	}
 
@@ -54,7 +52,7 @@ export class UserSerivce extends SalesforceService {
 			}
 			await this.api.create('PermissionSetAssignment', permissionSetAssignment)
 		} catch (error) {
-			throw new Error(`enabling permission set ${byLabel} for user ${this.user()}\n${error}`)
+			throw new Error(`enabling permission set ${byLabel}`, { cause: error })
 		}
 	}
 
@@ -68,7 +66,7 @@ export class UserSerivce extends SalesforceService {
 				await this.api.delete('PermissionSetAssignment', assignment.Id as SalesforceId)
 			}
 		} catch (error) {
-			throw new Error(`disabling permission set ${byLabel} for user ${this.user()}\n${error}`)
+			throw new Error(`disabling permission set ${byLabel}`, { cause: error })
 		}
 	}
 }

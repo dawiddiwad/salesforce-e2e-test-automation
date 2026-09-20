@@ -119,9 +119,11 @@ export class PackageSearchFiltersPage extends SalesforcePage {
 			await expect(
 				room.locator(this.input.rooms.comboboxChildren),
 				`room should have ${change.children} children selected`
-			).toContainText(change.adults.toString())
+			).toContainText(change.children.toString())
 		} catch (error) {
-			throw new Error(`setting occupants on nth:${change.room} room selected for occupancy change\n${error}`)
+			throw new Error(`setting occupants on nth:${change.room} room selected for occupancy change`, {
+				cause: error,
+			})
 		}
 	}
 
@@ -144,9 +146,9 @@ export class PackageSearchFiltersPage extends SalesforcePage {
 			await expect(
 				room.locator(this.input.rooms.comboboxChildren),
 				`room should have ${set.children} children selected`
-			).toContainText(set.adults.toString())
+			).toContainText(set.children.toString())
 		} catch (error) {
-			throw new Error(`setting nth:${set.room} room occupants\n${error}`)
+			throw new Error(`setting nth:${set.room} room occupants`, { cause: error })
 		}
 	}
 
@@ -159,7 +161,8 @@ export class PackageSearchFiltersPage extends SalesforcePage {
 				'package search should be completed - availability variant'
 			).toPass({ timeout: 60000 })
 		} catch (error) {
-			throw new Error(`searching packages due to\n${await this.getToastAlerts()}\n${error}`)
+			const alerts = await this.getToastAlerts().catch(() => '')
+			throw new Error(`searching packages${alerts ? `\n${alerts}` : ''}`, { cause: error })
 		}
 	}
 
@@ -175,7 +178,8 @@ export class PackageSearchFiltersPage extends SalesforcePage {
 				'package search should be completed - results variant'
 			).toBeHidden({ timeout: 60000 })
 		} catch (error) {
-			throw new Error(`searching packages due to\n${await this.getToastAlerts()}\n${error}`)
+			const alerts = await this.getToastAlerts().catch(() => '')
+			throw new Error(`searching packages${alerts ? `\n${alerts}` : ''}`, { cause: error })
 		}
 	}
 
@@ -187,7 +191,8 @@ export class PackageSearchFiltersPage extends SalesforcePage {
 				timeout: 60000,
 			})
 		} catch (error) {
-			throw new Error(`searching packages due to\n${await this.getToastAlerts()}\n${error}`)
+			const alerts = await this.getToastAlerts().catch(() => '')
+			throw new Error(`checking package availability${alerts ? `\n${alerts}` : ''}`, { cause: error })
 		}
 	}
 }

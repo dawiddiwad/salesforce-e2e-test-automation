@@ -1,4 +1,4 @@
-image: mcr.microsoft.com/playwright:v1.55.0-noble
+image: node:24.20.0-bookworm
 
 definitions:
     steps:
@@ -13,9 +13,9 @@ definitions:
                         JOB_NAME: $JENKINS_DEPLOYMENT_JOB
                         JOB_PARAMETERS: >
                             {
-                              'BRANCH': $JENKINS_DEPLOYMENT_BRANCH,
-                              'SFDX_URL': $TARGET_ORG_SFDX_URL,
-                              'RELEASE': $JENKINS_DEPLOYMENT_RELEASE
+                              "BRANCH": "$JENKINS_DEPLOYMENT_BRANCH",
+                              "SFDX_URL": "$TARGET_ORG_SFDX_URL",
+                              "RELEASE": "$JENKINS_DEPLOYMENT_RELEASE"
                             }
                         WAIT: 'true'
                         WAIT_MAX_TIME: 7000
@@ -25,13 +25,14 @@ definitions:
                   - node
               script:
                   - export NODE_NO_WARNINGS=1
-                  - cd salesforce-e2e-tests
-                  - npm install
-                  - npm install -g @salesforce/cli
-                  - echo $TARGET_ORG_SFDX_URL | sf org login sfdx-url --set-default --no-prompt --sfdx-url-stdin
+                  - npm ci
+                  - npm run validation:check
+                  - npx playwright install --with-deps chromium
+                  - npm install -g @salesforce/cli@latest
+                  - printf '%s\n' "$TARGET_ORG_SFDX_URL" | sf org login sfdx-url --set-default --no-prompt --sfdx-url-stdin
                   - $RUN_TESTS_CLI_COMMAND
               artifacts:
-                  - salesforce-e2e-tests/test-reports/**
+                  - test-reports/**
 
 pipelines:
     custom:

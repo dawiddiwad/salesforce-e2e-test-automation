@@ -29,34 +29,37 @@ export class SalesforceCliHandler {
 		try {
 			output = stripAnsi(output)
 			return JSON.parse(output)
-		} catch (error) {
-			throw new Error(`failed parsing output from:\n${output}\ndue to:\n${error}`)
+		} catch {
+			throw new Error('failed parsing Salesforce CLI JSON output')
 		}
 	}
 
 	public async runCommand({ command, flags, log }: CliCommand): Promise<Record<string, unknown> | string> {
 		const compiledArguments = `${this.defaultPath} ${command} ${flags ? this.join(flags) : ''}`
 		if (log) {
-			console.info(`executing ${this.defaultPath} cli command: ${compiledArguments}`)
+			console.info('executing Salesforce CLI command')
 		}
 		return new Promise<Record<string, unknown> | string>((resolve, reject) => {
-			exec(compiledArguments, (error, stdout, stderr) => {
-				try {
-					if (error && error.code === 1) {
-						throw new Error(`command failed\nError details:${stdout}\ncaused by:\n${error}`)
+			try {
+				exec(compiledArguments, (error, stdout, stderr) => {
+					if (error) {
+						const exitCode = Number.isSafeInteger(error.code) ? ` (exit code ${error.code})` : ''
+						reject(new Error(`Salesforce CLI execution failed${exitCode}`))
 					} else if (stderr && !this.ignored(stderr)) {
-						throw new Error(`command failed\nError details:${stderr}`)
+						reject(new Error('Salesforce CLI reported an error on stderr'))
+					} else if (!stdout) {
+						reject(new Error('missing output from Salesforce CLI command'))
 					} else {
-						if (stdout) {
+						try {
 							resolve(flags?.includes('--json') ? this.parseOutputAsJSON(stdout) : stdout)
-						} else throw new Error(`missing output from ${this.defaultPath} cli command`)
+						} catch {
+							reject(new Error('failed parsing Salesforce CLI JSON output'))
+						}
 					}
-				} catch (error) {
-					reject(
-						`failed running ${this.defaultPath} salesforce cli command:\n${compiledArguments}\ncaused by:\n${error}`
-					)
-				}
-			})
+				})
+			} catch {
+				reject(new Error('failed starting Salesforce CLI command'))
+			}
 		})
 	}
 }

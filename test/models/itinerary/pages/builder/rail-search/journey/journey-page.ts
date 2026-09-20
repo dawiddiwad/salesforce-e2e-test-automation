@@ -34,6 +34,6 @@ export class JourneyPage extends SalesforcePage {
 
 	@step
 	async getSegment(positionFromTop: number) {
-		return new SegmentPage(this.page, --positionFromTop).ready
+		return new SegmentPage(this.page, positionFromTop - 1).ready
 	}
 }

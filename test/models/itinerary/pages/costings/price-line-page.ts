@@ -10,7 +10,7 @@ export class ItineraryPriceLinePage extends SalesforcePage {
 	constructor(page: Page, lineIndex: number) {
 		super(page)
 		this.lineIndex = lineIndex
-		this.ready = expect(this.table.linesServiceRow.nth(lineIndex), `line ${++lineIndex} should be visible`)
+		this.ready = expect(this.table.linesServiceRow.nth(lineIndex), `line ${lineIndex + 1} should be visible`)
 			.toBeVisible()
 			.then(() => this)
 	}
@@ -73,7 +73,9 @@ export class ItineraryPriceLinePage extends SalesforcePage {
 		const initialState = await this.getLockSellPriceState()
 		if (initialState) await this.checkbox.lockSellPrice.uncheck()
 		else await this.checkbox.lockSellPrice.check()
-		expect(this.checkbox.lockSellPrice.isChecked, 'Lock Sell Price checkbox was toggled').not.toBe(initialState)
+		await expect(this.checkbox.lockSellPrice, 'Lock Sell Price checkbox was toggled').toBeChecked({
+			checked: !initialState,
+		})
 	}
 
 	@step

@@ -4,13 +4,7 @@ export type Booking = {
 }
 
 export type BookingStatus =
-	| 'Unconfirmed'
-	| 'Confirmed'
-	| 'Evaluated'
-	| 'Booked Held'
-	| 'Booked'
-	| 'Skipped'
-	| 'Confirmed Cancellation'
+	'Unconfirmed' | 'Confirmed' | 'Evaluated' | 'Booked Held' | 'Booked' | 'Skipped' | 'Confirmed Cancellation'
 
 export type ConfirmationMethod = 'API' | 'Manual' | 'Email'
 

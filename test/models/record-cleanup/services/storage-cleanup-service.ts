@@ -18,7 +18,7 @@ export class StorageCleanupService extends SalesforceService {
 
 		const errors = results
 			.filter((result) => !result.success)
-			.map((failure) => failure.errors.map((error) => JSON.stringify(error)).join('/n'))
+			.map((failure) => failure.errors.map((error) => JSON.stringify(error)).join('\n'))
 		if (errors.length)
 			throw new Error(
 				`${records.object} records for last ${records.lastDays} days could not be deleted\n${errors.join('\n')}`
@@ -33,6 +33,19 @@ export class StorageCleanupService extends SalesforceService {
 			'PackageNamespace__ItineraryBooking__c',
 			'PackageNamespace__ItineraryService__c',
 		]
-		await Promise.allSettled(objects.map((name) => this.bulkDeleteFor({ object: name, lastDays: last.days })))
+		const results = await Promise.allSettled(
+			objects.map((name) => this.bulkDeleteFor({ object: name, lastDays: last.days }))
+		)
+		const failures = results.flatMap((result, index) => {
+			if (result.status === 'fulfilled') return []
+			const reason = result.reason instanceof Error ? result.reason.message : String(result.reason)
+			return [new Error(`${objects[index]}: ${reason}`)]
+		})
+		if (failures.length) {
+			throw new AggregateError(
+				failures,
+				`Storage cleanup failed for ${failures.length} object(s):\n${failures.map((error) => error.message).join('\n')}`
+			)
+		}
 	}
 }

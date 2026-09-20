@@ -1,5 +1,6 @@
 import { Record } from 'jsforce'
 import { fake } from './support/test-data'
+import { updateLockSellPriceBaseline } from './support/lock-sell-price-baseline'
 import { expect } from '@playwright/test'
 import { test } from '../../runners/custom-test-runner'
 
@@ -264,14 +265,12 @@ test.describe.parallel(
         And reseller commission group and/or commission percentage has changed on a service
         ---
         `, async () => {
-					priceLinesBeforeCostMod
-						.filter((line) =>
-							['SELLTAX', 'RESCOMMISSION'].some((type) => type === line.PackageNamespace__EntryType__c)
-						)
-						.map(async (line) => {
-							line.PackageNamespace__Value__c = 500
-							await actor.api.update('PackageNamespace__ItineraryPriceLine__c', line)
-						})
+					const persistedBaseline = await updateLockSellPriceBaseline(
+						actor.api,
+						priceLinesBeforeCostMod,
+						getPriceLines
+					)
+					priceLinesBeforeCostMod.splice(0, priceLinesBeforeCostMod.length, ...persistedBaseline)
 				})
 
 				await test.step(`
@@ -562,14 +561,12 @@ test.describe.parallel(
         And reseller commission group and/or commission percentage has changed on a service
         ---
         `, async () => {
-					priceLinesBeforeCostMod
-						.filter((line) =>
-							['SELLTAX', 'RESCOMMISSION'].some((type) => type === line.PackageNamespace__EntryType__c)
-						)
-						.map(async (line) => {
-							line.PackageNamespace__Value__c = 500
-							await actor.api.update('PackageNamespace__ItineraryPriceLine__c', line)
-						})
+					const persistedBaseline = await updateLockSellPriceBaseline(
+						actor.api,
+						priceLinesBeforeCostMod,
+						getPriceLines
+					)
+					priceLinesBeforeCostMod.splice(0, priceLinesBeforeCostMod.length, ...persistedBaseline)
 				})
 
 				await test.step(`

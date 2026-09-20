@@ -9,7 +9,7 @@ export class ItineraryGroupLinePage extends SalesforcePage {
 	constructor(page: Page, lineIndex: number) {
 		super(page)
 		this.lineIndex = lineIndex
-		this.ready = expect(this.table.line.nth(lineIndex), `line ${++lineIndex} should be visible`)
+		this.ready = expect(this.table.line.nth(lineIndex), `line ${lineIndex + 1} should be visible`)
 			.toBeVisible()
 			.then(() => this)
 	}

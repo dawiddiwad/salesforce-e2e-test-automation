@@ -28,17 +28,16 @@ export class SobjectRecordComparator {
 		this.api = api
 	}
 
-	protected select<R extends SalesforceRecord, F extends keyof R>(record: R, fields: F[]): Partial<Pick<R, F>> {
-		const selectedFields: Partial<Pick<R, F>> = {}
+	protected select(record: SalesforceRecord, fields: string[]): SalesforceRecord {
+		const selectedFields: SalesforceRecord = {}
 		for (const key of fields) {
-			if (key in record) {
-				selectedFields[key] = record[key]
-			}
+			expect(Object.hasOwn(record, key), `expected selected field ${key} to exist`).toBe(true)
+			selectedFields[key] = record[key]
 		}
 		return selectedFields
 	}
 
-	protected filter<R extends SalesforceRecord, F extends keyof R>(record: R, fields: F[]): Omit<R, F> {
+	protected filter(record: SalesforceRecord, fields: string[]): SalesforceRecord {
 		const filteredFields = { ...record }
 		for (const key of fields) {
 			delete filteredFields[key]
@@ -46,74 +45,19 @@ export class SobjectRecordComparator {
 		return filteredFields
 	}
 
-	protected processDiff(
-		expected: SalesforceRecord,
-		actual: SalesforceRecord,
-		fields: string[],
-		action: 'select' | 'filter'
-	) {
-		const actualResult = this[action](actual, fields)
-		const expectedResult = this[action](expected, fields)
-		expect
-			.soft(actualResult, `expect ${expected.attributes?.type} ${actual.Id} should match ${expected.Id}`)
-			.toMatchObject(expectedResult)
-	}
-
-	private setupDiff(expected: SalesforceRecord, actual: SalesforceRecord) {
-		return {
-			filter: (filter?: FieldFilter) => {
-				const fields = filter?.fields || []
-				const action = filter ? 'filter' : 'select'
-				this.processDiff(expected, actual, fields, action)
-			},
+	private performRecordComparison(expected: SalesforceRecord, actual: SalesforceRecord, map: CompareMap) {
+		const children = map.child?.map((child) => child.sobject) ?? []
+		const expectedFields = this.filter(expected, children)
+		const actualFields = this.filter(actual, children)
+		const action = map.fieldFilter?.type ?? 'filter'
+		const fields = map.fieldFilter?.fields ?? []
+		if (action === 'select') {
+			expect(fields, `${map.sobject} must select at least one field`).not.toHaveLength(0)
 		}
-	}
-
-	private findMatchingRecordIndex(expected: SalesforceRecord, actual: SalesforceRecord[], fields: string[]): number {
-		return actual.findIndex((record) => fields.every((field) => expected[field] === record[field]))
-	}
-
-	private assertRecordCount(expected: CompareMapRecords, actual: CompareMapRecords, child: CompareMap) {
-		expect
-			.soft(
-				expected[child.sobject],
-				`expect ${child.sobject} records count to be ${actual[child.sobject].length}`
-			)
-			.toHaveLength(actual[child.sobject].length)
-	}
-
-	private assertRecordMatch(
-		record: SalesforceRecord,
-		fields: string[],
-		child: CompareMap,
-		actual: CompareMapRecords
-	) {
-		const matchIndex = this.findMatchingRecordIndex(record, actual[child.sobject], fields)
-		expect
-			.soft(() => {
-				this.assertRecordDefined(actual[child.sobject][matchIndex], record, fields)
-				this.performRecordComparison(record, actual[child.sobject][matchIndex], child)
-			}, `validate ${record.attributes?.type} record ${record.Id}`)
-			.not.toThrow()
-		if (child.child) {
-			this.compare(child, record, actual[child.sobject][matchIndex])
-		}
-	}
-
-	private assertRecordDefined(
-		matchedRecord: SalesforceRecord | undefined,
-		record: SalesforceRecord,
-		fields: string[]
-	) {
-		expect(matchedRecord, `expect ${record.Id} to have a match by ${fields} fields`).toBeDefined()
-	}
-
-	private performRecordComparison(record: SalesforceRecord, matchedRecord: SalesforceRecord, child: CompareMap) {
-		const filter: FieldFilter = {
-			fields: [...(child.fieldFilter?.fields || []), ...(child.child?.map((r) => r.sobject) || [])],
-			type: 'filter',
-		}
-		new SobjectRecordComparator(this.api).setupDiff(record, matchedRecord).filter(filter)
+		expect(
+			this[action](actualFields, fields),
+			`${map.sobject} record ${actual.Id} should match expected record ${expected.Id}`
+		).toEqual(this[action](expectedFields, fields))
 	}
 
 	async getRecords(map: CompareMap, api: RestApiHandler, recordId: string): Promise<CompareMapRecords> {
@@ -142,14 +86,38 @@ export class SobjectRecordComparator {
 
 	compare(map: CompareMap, expected: CompareMapRecords, actual: CompareMapRecords) {
 		for (const child of map.child ?? []) {
-			if (child.matchCriteria === 'count()') {
-				this.assertRecordCount(expected, actual, child)
-				continue
-			}
+			const expectedRecords = expected[child.sobject]
+			const actualRecords = actual[child.sobject]
+			expect(Array.isArray(expectedRecords), `expected ${child.sobject} collection must exist`).toBe(true)
+			expect(Array.isArray(actualRecords), `actual ${child.sobject} collection must exist`).toBe(true)
+			expect(actualRecords, `${child.sobject} record count must match`).toHaveLength(expectedRecords.length)
+			if (child.matchCriteria === 'count()') continue
+
 			const fields = child.matchCriteria.fields
-			expected[child.sobject].forEach((record) => {
-				this.assertRecordMatch(record, fields, child, actual)
-			})
+			expect(fields, `${child.sobject} must specify matching fields`).not.toHaveLength(0)
+			for (const record of [...expectedRecords, ...actualRecords]) {
+				for (const field of fields) {
+					expect(
+						record[field],
+						`${child.sobject} record ${record.Id} must define match field ${field}`
+					).not.toBeUndefined()
+				}
+			}
+
+			const unmatched = [...actualRecords]
+			for (const record of expectedRecords) {
+				const matches = unmatched.filter((candidate) =>
+					fields.every((field) => record[field] === candidate[field])
+				)
+				expect(
+					matches,
+					`${child.sobject} record ${record.Id} must have exactly one match by ${fields.join(', ')}`
+				).toHaveLength(1)
+				const matchedRecord = matches[0]
+				unmatched.splice(unmatched.indexOf(matchedRecord), 1)
+				this.performRecordComparison(record, matchedRecord, child)
+				this.compare(child, record, matchedRecord)
+			}
 		}
 	}
 }

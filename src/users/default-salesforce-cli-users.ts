@@ -17,8 +17,8 @@ export class DefaultSalesforceCliUser implements SalesforceBackendUser, Salesfor
 				this.authHandler = authHandler
 				return this
 			})
-			.catch((error) => {
-				throw new Error(`unable to initialize default cli user due to:\n${error}`)
+			.catch(() => {
+				throw new Error('unable to initialize default Salesforce CLI user')
 			})
 	}
 

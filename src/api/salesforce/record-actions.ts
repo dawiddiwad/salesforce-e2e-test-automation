@@ -1,6 +1,6 @@
 import { Record } from 'jsforce'
 import { step } from '../../../test/runners/custom-test-runner'
-import { EmptyQueryResultError, RestApiHandler } from './rest-api-handler'
+import { RestApiHandler } from './rest-api-handler'
 
 export class SobjectRecordActions {
 	private readonly api: RestApiHandler
@@ -30,10 +30,6 @@ export class SobjectRecordActions {
 					childRecords.forEach((childRecord) => childs.push(childRecord))
 				})
 				return childs
-			})
-			.catch((error) => {
-				if (error instanceof EmptyQueryResultError) return [] as Record[]
-				else throw error
 			})
 	}
 }

@@ -53,7 +53,7 @@ export class ItineraryTabPage extends SalesforcePage {
 				await edit.saveChanges()
 			})
 		} catch (error) {
-			throw new Error(`creating new itinerary/n${error}`)
+			throw new Error('creating new itinerary', { cause: error })
 		}
 	}
 }

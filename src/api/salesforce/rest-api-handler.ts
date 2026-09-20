@@ -22,15 +22,20 @@ export class RestApiHandler {
 		if (apiVersion) {
 			this.apiVersion = apiVersion
 		}
-		this.connection = new Connection({
-			instanceUrl: credentials.instanceUrl.origin.toString(),
-			accessToken: credentials.accessToken,
-			version: this.apiVersion,
-		})
 		try {
-			this.ready = this.connection.identity().then(() => this)
-		} catch (error) {
-			throw new Error(`unable to authenticate Salesforce Rest API due to:\n${error}`)
+			this.connection = new Connection({
+				instanceUrl: credentials.instanceUrl.origin.toString(),
+				accessToken: credentials.accessToken,
+				version: this.apiVersion,
+			})
+			this.ready = this.connection
+				.identity()
+				.then(() => this)
+				.catch(() => {
+					throw new Error('unable to authenticate Salesforce Rest API')
+				})
+		} catch {
+			throw new Error('unable to authenticate Salesforce Rest API')
 		}
 	}
 
@@ -38,8 +43,8 @@ export class RestApiHandler {
 	async create(sobjectApiName: SObjectNames<Schema>, data: SObjectInputRecord<Schema, string>): Promise<SaveResult> {
 		try {
 			return await this.connection.create(sobjectApiName, data, { allOrNone: true })
-		} catch (error) {
-			throw new Error(`unable to create ${sobjectApiName} due to:\n${error}`)
+		} catch {
+			throw new Error('unable to create Salesforce record')
 		}
 	}
 
@@ -47,8 +52,8 @@ export class RestApiHandler {
 	async read(sobjectApiName: SObjectNames<Schema>, recordId: string): Promise<Record> {
 		try {
 			return await this.connection.retrieve(sobjectApiName, recordId)
-		} catch (error) {
-			throw new Error(`unable to read ${sobjectApiName} record ${recordId} due to:\n${error}`)
+		} catch {
+			throw new Error('unable to read Salesforce record')
 		}
 	}
 
@@ -56,10 +61,8 @@ export class RestApiHandler {
 	async update(sobjectApiName: SObjectNames<Schema>, data: Record): Promise<SaveResult | SaveResult[]> {
 		try {
 			return await this.connection.update(sobjectApiName, data, { allOrNone: true })
-		} catch (error) {
-			throw new Error(
-				`unable to update ${sobjectApiName} with data:\n${JSON.stringify(data, null, 3)}\ndue to:\n${error}`
-			)
+		} catch {
+			throw new Error('unable to update Salesforce record')
 		}
 	}
 
@@ -67,32 +70,40 @@ export class RestApiHandler {
 	async delete(sobjectApiName: SObjectNames<Schema>, recordId: string): Promise<SaveResult> {
 		try {
 			return await this.connection.delete(sobjectApiName, recordId)
-		} catch (error) {
-			throw new Error(`unable to delete ${sobjectApiName} record ${recordId} due to:\n${error}`)
+		} catch {
+			throw new Error('unable to delete Salesforce record')
 		}
 	}
 
 	@step
 	async query(soql: string, acceptEmptyResult: boolean = false): Promise<QueryResult<Record[]>> {
+		let queryResult: QueryResult<Record[]>
 		try {
-			const queryResult = await this.connection.query<Record[]>(soql)
-			if (!queryResult.records.length && !acceptEmptyResult) {
-				throw new EmptyQueryResultError(`no records returned using SOQL:\n${soql}`)
-			} else return queryResult
-		} catch (error) {
-			throw new Error(`failed running SOQL query:\n${soql}\ndue to:\n${error}`)
+			queryResult = await this.connection.query<Record[]>(soql)
+		} catch {
+			throw new Error('failed running Salesforce SOQL query')
 		}
+		if (!queryResult.records.length && !acceptEmptyResult) {
+			throw new EmptyQueryResultError('no records returned by Salesforce SOQL query')
+		}
+		return queryResult
 	}
 
 	@step
 	async executeApex(apexBody: string): Promise<ExecuteAnonymousResult> {
+		let result: ExecuteAnonymousResult
 		try {
-			const result = await this.connection.tooling.executeAnonymous(apexBody)
-			if (!result.success) {
-				throw new Error(JSON.stringify(result, null, 3))
-			} else return result
-		} catch (error) {
-			throw new Error(`failed executing anonymous Apex:\n${apexBody}\ndue to:\n${error}`)
+			result = await this.connection.tooling.executeAnonymous(apexBody)
+		} catch {
+			throw new Error('failed executing anonymous Apex')
 		}
+		if (!result.success) {
+			const metadata: string[] = []
+			if (typeof result.compiled === 'boolean') metadata.push(`compiled=${result.compiled}`)
+			if (Number.isSafeInteger(result.line)) metadata.push(`line=${result.line}`)
+			if (Number.isSafeInteger(result.column)) metadata.push(`column=${result.column}`)
+			throw new Error(`failed executing anonymous Apex${metadata.length ? ` (${metadata.join(', ')})` : ''}`)
+		}
+		return result
 	}
 }

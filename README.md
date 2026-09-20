@@ -33,8 +33,9 @@ It works best with [vsc](https://code.visualstudio.com) as it has extensions for
 
 2. **Node.js**
     - Check if already installed in the terminal: `node --version`
-    - Version should be 22.xx
-    - Download the latest LTS version with NPM from [nodejs.org](https://nodejs.org/en/download/)
+    - Use **Node.js 24.20.0 LTS**, matching `.nvmrc` and CI. The package supports Node 24 from this version onward.
+    - With [nvm](https://github.com/nvm-sh/nvm), run `nvm install` and `nvm use` in the repository root.
+    - Alternatively, install Node.js 24.20.0 with NPM from [nodejs.org](https://nodejs.org/en/download/)
 
 3. **Salesforce CLI**
     - Check if already installed in the terminal: `sf --version`
@@ -75,7 +76,7 @@ It works best with [vsc](https://code.visualstudio.com) as it has extensions for
 4. **Install Dependencies**
     - Open a terminal inside VS Code and run the following commands:
         ```bash
-        npm install
+        npm ci
         npx playwright install
         ```
 
@@ -101,6 +102,17 @@ It works best with [vsc](https://code.visualstudio.com) as it has extensions for
         ```
     - if you just want to stop posting results automatically to Xray after each run, decalre additional variable in `.env` file: `XRAY_STOP_POSTING=true` in such case .json file will be generated in the `./test-reposrts/xray` folder that can be uploaded manually to Xray.
     - if you want to **enable Xray integration** declare `XRAY_ENABLE=true` in `.env` file, otherwise the Xray reporter will be disabled and no other `XRAY_xx` variables are required.
+
+#### Offline validation
+
+```bash
+npm run validation:check
+npm run test:unit
+```
+
+CI uses `node:24.20.0-bookworm` and runs from the repository root using `npm ci`. It installs Chromium and its system dependencies with the locked Playwright CLI (`npx playwright install --with-deps chromium`), so the browser revision always matches `@playwright/test`. Salesforce CLI is pinned to `2.150.6` in the pipeline. Offline unit tests focus on reusable framework mechanics, not domain page or service implementations. Reports and raw test results are retained under `test-reports/`.
+
+Step titles intentionally omit method arguments to avoid leaking credentials. Review screenshots, traces and other artifacts for sensitive application data before sharing them.
 
 #### [running tests](https://playwright.dev/docs/running-tests):
 

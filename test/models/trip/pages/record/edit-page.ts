@@ -53,7 +53,8 @@ export class TripRecordEditPage extends SalesforcePage {
 			await expect(this.page, 'changes are saved with no errors').not.toHaveURL(/new/)
 			await expect(this.page, 'page is redirected to record view').toHaveURL(/view/)
 		} catch (error) {
-			throw new Error(`saving Trip record due to\n${await this.getToastAlerts()}\n${error}`)
+			const alerts = await this.getToastAlerts().catch(() => '')
+			throw new Error(`saving Trip record${alerts ? `\n${alerts}` : ''}`, { cause: error })
 		}
 	}
 

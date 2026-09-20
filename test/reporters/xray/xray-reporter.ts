@@ -55,7 +55,7 @@ export default class XrayReporter implements Reporter {
 			.then((chrome) => chrome.newContext())
 			.then((context) => context.request)
 			.catch((error) => {
-				throw new Error(`⛔ unable to create API request context for Xray Reporter due to\n${error}`)
+				throw new Error('⛔ unable to create API request context for Xray Reporter', { cause: error })
 			})
 	}
 
@@ -169,37 +169,36 @@ export default class XrayReporter implements Reporter {
 	}
 
 	protected async authenticate(): Promise<XrayToken> {
-		const request = await this.request
-		const url = new URL(`${this.urlInstance}${this.pathAuthenticate}`).toString()
-		const secrets = {
-			client_id: this.options.clientId,
-			client_secret: this.options.clientSecret,
+		try {
+			const request = await this.request
+			const url = new URL(`${this.urlInstance}${this.pathAuthenticate}`).toString()
+			const secrets = {
+				client_id: this.options.clientId,
+				client_secret: this.options.clientSecret,
+			}
+			const response = await request.post(url, { data: secrets })
+			if (!response.ok()) throw new Error('Xray authentication request failed')
+			const token: unknown = await response.json()
+			if (typeof token !== 'string' || !token.trim()) throw new Error('Invalid Xray authentication response')
+			return (this.bearerToken = { Authorization: `Bearer ${token}` })
+		} catch {
+			throw new Error('⛔ unable to authenticate Xray')
 		}
-
-		const response = await request.post(url, { data: secrets })
-		const body = await response
-			.body()
-			.then((body) => body.toString())
-			.catch((error) => error)
-
-		if (response.ok()) return (this.bearerToken = { Authorization: `Bearer ${body.replaceAll('"', '')}` })
-		else throw Error(`⛔ authorizing Xray due to\n${body}`)
 	}
 
 	protected async postFullResult() {
-		const request = await this.request
-		const results = this.fullTestResult
-		const url = new URL(`${this.urlInstance}${this.pathImportExecution}`).toString()
+		try {
+			const request = await this.request
+			const results = this.fullTestResult
+			const url = new URL(`${this.urlInstance}${this.pathImportExecution}`).toString()
 
-		console.info(`👉 start posting results to Xray for Test Plan ${this.options.testPlanKey} ... ⏳`)
-		const response = await request.post(url, { data: results, headers: this.bearerToken })
-		const body = await response
-			.body()
-			.then((body) => body.toString())
-			.catch((error) => error)
-
-		if (response.ok()) return console.info(`👉 success posting results to Xray 🚀`)
-		else throw new Error(`⛔ posting Xray results due to\n${body}`)
+			console.info(`👉 start posting results to Xray for Test Plan ${this.options.testPlanKey} ... ⏳`)
+			const response = await request.post(url, { data: results, headers: this.bearerToken })
+			if (!response.ok()) throw new Error('Xray result upload failed')
+			console.info('👉 success posting results to Xray 🚀')
+		} catch {
+			throw new Error('⛔ unable to post Xray results')
+		}
 	}
 
 	async onTestEnd(test: TestCase, result: TestResult) {
@@ -258,9 +257,8 @@ export default class XrayReporter implements Reporter {
 					`${this.stringify(this.fullTestResult)}`
 				)
 			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : String(error)
 				return console.error(
-					`⛔ unable to save Xray ${this.options.outputFilename} report due to\n${errorMessage}`
+					new Error(`⛔ unable to save Xray ${this.options.outputFilename} report`, { cause: error })
 				)
 			}
 
@@ -273,7 +271,7 @@ export default class XrayReporter implements Reporter {
 				await this.authenticate()
 				await this.postFullResult()
 			} catch (error) {
-				console.error(`⛔ unable to upload Xray report due to\n${error}`)
+				console.error(new Error('⛔ unable to upload Xray report', { cause: error }))
 			}
 	}
 }

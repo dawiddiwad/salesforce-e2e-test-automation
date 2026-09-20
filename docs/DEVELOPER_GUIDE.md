@@ -77,13 +77,16 @@ root/
 │   ├── policies/                 # Data policies & naming conventions
 │   ├── reporters/                # Custom reporters (Xray)
 │   ├── runners/                  # Test fixtures (custom-test-runner.ts)
-│   └── specs/                    # Test specifications
-│       ├── {project}/            # Test suites by project
-│       │   ├── {feature}.spec.ts # Test files
-│       │   └── support/          # Test data & helpers
+│   ├── specs/                    # E2E test specifications
+│   │   └── {project}/            # Test suites by project
+│   │       ├── {feature}.spec.ts # Test files
+│   │       └── support/          # Test data & helpers
+│   └── unit/                     # Offline framework mechanics tests
 │
 └── playwright.config.ts          # Playwright configuration
 ```
+
+`test/unit/` focuses on reusable mechanics in `src/`: API and CLI handlers, authentication, record helpers, and base error propagation. It also covers the shared `@step` decorator and Xray HTTP boundary. Domain page/service behavior and business scenarios belong in `test/specs/`, rather than being duplicated with unit-level model mocks.
 
 ---
 
@@ -114,12 +117,12 @@ export class MyPage extends SalesforcePage {
 	@step
 	async doSomething(param: string) {
 		// This appears in Playwright report as:
-		// "MyPage > Do Something : param value"
+		// "MyPage > Do Something"
 	}
 }
 ```
 
-The decorator auto-formats method names and arguments into readable steps. It also enables **boxed steps** in traces for cleaner debugging.
+The decorator auto-formats class and method names into readable steps. Arguments are deliberately omitted: they may contain credentials, personal data or raw Apex. It also enables **boxed steps** in traces for cleaner debugging. Do not add raw request payloads or credential-bearing error responses to step titles or logs. Authentication, Salesforce API, CLI, IMAP and Xray HTTP failures intentionally omit raw upstream diagnostics and causes; Apex failures retain only compilation status and numeric source locations. Non-sensitive UI and service wrappers preserve the original error through `Error.cause`. Investigate detailed server errors in an appropriately secured environment instead of publishing them in test artifacts.
 
 ### Fluent Interface Pattern
 
@@ -590,7 +593,28 @@ test/models/{new-domain}/
 
 ---
 
+## Dependency Compatibility
+
+- TypeScript is kept on `~6.0.3`: `typescript-eslint` 8.70.0 supports TypeScript below 6.1, not the latest TypeScript 7 release.
+- `@types/node` stays on the latest 24.x release to match the runtime, rather than exposing Node 26 APIs.
+- ESLint 10's `preserve-caught-error` rule is enabled. Non-sensitive wrappers retain `{ cause: error }`. Authentication and credential-bearing boundaries use deliberate parameterless catches and safe messages, without retaining raw errors or response bodies; the rule's default `requireCatchParameter: false` permits this.
+- The `utf7` dependency used by IMAP pins vulnerable `semver` 5.3 internally. The scoped override selects patched `semver` 5.7.2 without changing its major version.
+- The latest JSforce 3.10.25 still depends on `csv-parse` 5.x. `npm audit` reports two moderate entries for this chain. Do not apply its proposed downgrade to JSforce 1.6.5 or force a CSV parser major override without integration testing.
+
 ## Quick Commands
+
+Use Node.js **24.20.0 LTS** (`nvm install` and `nvm use` use the repository's `.nvmrc`). CI uses the same Node version and installs the browser revision selected by the locked Playwright dependency.
+
+Framework unit tests use Node's test runner through `tsx`; they require no Salesforce org, browser, email or Xray credentials:
+
+```bash
+npm run test:unit
+npm run validation:check
+```
+
+The amendment comparator requires equal collection sizes and unambiguous, one-to-one matching keys. It fails immediately on a mismatch. Fetching children of a missing parent fails rather than treating that parent as an empty collection. Field filters exclude volatile fields; `select` filters compare only explicitly selected fields. Nested `count()` relationships intentionally check counts only. Compare the pre-merge amendment as expected against the merged primary as actual.
+
+Storage cleanup waits for all attempted deletions and fails with an aggregate error if any object fails. It still deletes recent records by object/date rather than test ownership; enable it only in a disposable test org.
 
 ```bash
 # Run specific test by tag

@@ -9,7 +9,7 @@ export class PackageSearchResultsRow extends SalesforcePage {
 	constructor(page: Page, rowIndex: number) {
 		super(page)
 		this.rowIndex = rowIndex
-		this.ready = expect(this.table.row.container(), `package search results row ${++rowIndex} should be visible`)
+		this.ready = expect(this.table.row.container(), `package search results row ${rowIndex + 1} should be visible`)
 			.toBeVisible({ timeout: 5_000 })
 			.then(() => this)
 	}
@@ -37,7 +37,8 @@ export class PackageSearchResultsRow extends SalesforcePage {
 				timeout: 2 * 60_000,
 			})
 		} catch (error) {
-			throw new Error(`adding package to itinerary\n${await this.getToastAlerts()}\n${error}`)
+			const alerts = await this.getToastAlerts().catch(() => '')
+			throw new Error(`adding package to itinerary${alerts ? `\n${alerts}` : ''}`, { cause: error })
 		}
 	}
 }

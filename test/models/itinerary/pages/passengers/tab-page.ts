@@ -18,7 +18,7 @@ export class ItineraryPassengersTabPage extends SalesforcePage {
 
 	@step
 	async getLine(number: number): Promise<ItineraryPassengersLinePage> {
-		return new ItineraryPassengersLinePage(this.page, --number).ready
+		return new ItineraryPassengersLinePage(this.page, number - 1).ready
 	}
 
 	@step

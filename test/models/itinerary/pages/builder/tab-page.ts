@@ -80,7 +80,9 @@ export class ItineraryBuilderTabPage extends SalesforcePage {
 		const initialState = await this.getLockSellPriceState()
 		if (initialState) await this.checkbox.lockSellPrice.uncheck()
 		else await this.checkbox.lockSellPrice.check()
-		expect(this.checkbox.lockSellPrice.isChecked, 'Lock Sell Price checkbox was toggled').not.toBe(initialState)
+		await expect(this.checkbox.lockSellPrice, 'Lock Sell Price checkbox was toggled').toBeChecked({
+			checked: !initialState,
+		})
 	}
 
 	@step
@@ -90,10 +92,8 @@ export class ItineraryBuilderTabPage extends SalesforcePage {
 			await this.waitForSpinners()
 			await expect(this.button.save, 'Save button is no longer available').toBeHidden()
 		} catch (error) {
-			const matcherResult = (error as { matcherResult?: { log: string[] } }).matcherResult
-			throw new Error(
-				`saving Builder Lines due to\n${await this.getToastAlerts()}\n${matcherResult ? matcherResult.log.join('\n') : error}`
-			)
+			const alerts = await this.getToastAlerts().catch(() => '')
+			throw new Error(`saving Builder Lines${alerts ? `\n${alerts}` : ''}`, { cause: error })
 		}
 	}
 
@@ -108,10 +108,7 @@ export class ItineraryBuilderTabPage extends SalesforcePage {
 			await this.modal.primaryLocations.button.save.click()
 			await expect(this.page.getByText('select primary locations'), 'Primary Locations are set').toBeHidden()
 		} catch (error) {
-			const matcherResult = (error as { matcherResult?: { log: string[] } }).matcherResult
-			throw new Error(
-				`setting Primary Locations ${locations.join()} due to\n${matcherResult ? matcherResult.log.join('\n') : error}`
-			)
+			throw new Error(`setting Primary Locations ${locations.join()}`, { cause: error })
 		}
 	}
 
@@ -133,6 +130,6 @@ export class ItineraryBuilderTabPage extends SalesforcePage {
 	@step
 	async getLine(number: number): Promise<ItineraryBuilderLinePage> {
 		await this.handleShortcutsTooltip()
-		return new ItineraryBuilderLinePage(this.page, --number).ready
+		return new ItineraryBuilderLinePage(this.page, number - 1).ready
 	}
 }

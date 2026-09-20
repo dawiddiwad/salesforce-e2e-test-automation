@@ -36,7 +36,7 @@ export class NavigatorContextBarPage extends SalesforcePage {
 				'record layout should be loaded with no errors'
 			).not.toBeVisible()
 		} catch (error) {
-			throw new Error(`navigating to record id ${id}\n${error}`)
+			throw new Error(`navigating to record id ${id}`, { cause: error })
 		}
 	}
 

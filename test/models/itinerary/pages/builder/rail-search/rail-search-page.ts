@@ -13,7 +13,7 @@ export class RailSearchPage extends SalesforcePage {
 			.then(() => this.waitForOptionalSpinners())
 			.then(() => this)
 			.catch((error) => {
-				throw new Error(`Rail Search should be ready\n${error}`)
+				throw new Error('Rail Search should be ready', { cause: error })
 			})
 	}
 
@@ -63,7 +63,7 @@ export class RailSearchPage extends SalesforcePage {
 
 	@step
 	async getJourney(positionFromTop: number) {
-		return new JourneyPage(this.page, --positionFromTop).ready
+		return new JourneyPage(this.page, positionFromTop - 1).ready
 	}
 
 	@step

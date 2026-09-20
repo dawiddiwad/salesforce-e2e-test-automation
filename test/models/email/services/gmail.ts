@@ -27,14 +27,20 @@ export class GmailService implements EmailService {
 
 	@step
 	async findByRecipient(text: string): Promise<number[]> {
+		let connected = false
 		try {
 			await this.api.connect()
+			connected = true
 			await this.api.openBox('INBOX')
-			return this.api.searchByTypeAndValue('TO', text)
-		} catch (error) {
-			throw new Error(`Error finding inbox messages for recipient with text ${text} due to\n${error}`)
+			return await this.api.searchByTypeAndValue('TO', text)
+		} catch {
+			throw new Error('Unable to find Gmail inbox messages')
 		} finally {
-			await this.api.disconnect()
+			if (connected) {
+				await this.api.disconnect().catch(() => {
+					throw new Error('Unable to disconnect Gmail session')
+				})
+			}
 		}
 	}
 }

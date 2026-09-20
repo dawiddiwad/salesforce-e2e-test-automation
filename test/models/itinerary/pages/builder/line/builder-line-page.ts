@@ -276,7 +276,7 @@ export class ItineraryBuilderLinePage extends SalesforcePage {
 		try {
 			return this.quote.getPrice(await this.read('Sell Price'))
 		} catch (error) {
-			throw new Error(`getting Sell Price for line ${this.lineIndex + 1}\n${error}`)
+			throw new Error(`getting Sell Price for line ${this.lineIndex + 1}`, { cause: error })
 		}
 	}
 

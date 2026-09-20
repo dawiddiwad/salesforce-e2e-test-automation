@@ -11,19 +11,20 @@ export abstract class CustomSettingsService extends SalesforceService {
 	protected abstract readonly customSetting: CustomSetting
 
 	protected async get() {
+		let appSettings: SaleforceRecord[]
 		try {
-			const appSettings = (await this.api.connection
+			appSettings = (await this.api.connection
 				.sobject(this.customSetting.apiName)
 				.find()
 				.run()) as SaleforceRecord[]
-			expect(
-				appSettings.length,
-				`single ${this.customSetting.apiName} record should be configured in custom settings`
-			).toEqual(1)
-			return appSettings[0] as SaleforceRecord
-		} catch (error) {
-			throw new Error(`reading custom setting record for ${this.customSetting.apiName}\n${error}`)
+		} catch {
+			throw new Error(`reading custom setting record for ${this.customSetting.apiName}`)
 		}
+		expect(
+			appSettings.length,
+			`single ${this.customSetting.apiName} record should be configured in custom settings`
+		).toEqual(1)
+		return appSettings[0] as SaleforceRecord
 	}
 
 	protected async set(custom: { field: string; value: string }) {
@@ -36,9 +37,7 @@ export abstract class CustomSettingsService extends SalesforceService {
 					[custom.field]: custom.value,
 				})
 		} catch (error) {
-			throw new Error(
-				`setting value ${custom.value} on ${custom.field} of custom setting ${this.customSetting.apiName}\n${error}`
-			)
+			throw new Error(`setting ${custom.field} of custom setting ${this.customSetting.apiName}`, { cause: error })
 		}
 	}
 }

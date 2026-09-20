@@ -13,7 +13,7 @@ export class AccountRecordService extends SalesforceService {
 			}
 			return this.api.create('Account', account)
 		} catch (error) {
-			throw new Error(`creating ${recordType} Account\n${error}`)
+			throw new Error(`creating ${recordType} Account`, { cause: error })
 		}
 	}
 

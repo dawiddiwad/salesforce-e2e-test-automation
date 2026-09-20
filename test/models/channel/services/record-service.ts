@@ -9,7 +9,7 @@ export class ChannelRecordService extends SalesforceService {
 		try {
 			return await this.api.query(soql, true).then((result) => result.records as Record[])
 		} catch (error) {
-			throw new Error(`failed fetching channel records by name ${name} due to:\n${error}`)
+			throw new Error(`failed fetching channel records by name ${name}`, { cause: error })
 		}
 	}
 }

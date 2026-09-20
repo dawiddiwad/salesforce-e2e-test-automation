@@ -67,31 +67,16 @@ test.describe.serial('Package Search - POA Cruise', async () => {
         - 4 double rooms
         ---
         `, async () => {
-			const searchForPackages = async () => {
-				try {
-					await ui.navigator.goto(shared.primaryPassenger)
-					await ui.contact.record.details.openPackageSearch()
-					await ui.packageSearch.filters.setPackageName(
-						'POA-2024-26-CRUISE-USD: Portrait of Arabia: The Emirates, Qatar & Oman'
-					)
-					await ui.packageSearch.filters.setDatesNextMonth()
-					await ui.packageSearch.filters.setDefaultRooms(4)
-					await ui.packageSearch.filters.searchPackagesAvailability()
-				} catch (error) {
-					const errorMessage = error instanceof Error ? error.message : ''
-					if (errorMessage.includes('retry your recent action')) return errorMessage
-					else throw error
-				}
-			}
-
-			await expect
-				.poll(
-					async () => {
-						await searchForPackages()
-					},
-					{ timeout: 3 * 60000, message: 'package search should be completed' }
+			await expect(async () => {
+				await ui.navigator.goto(shared.primaryPassenger)
+				await ui.contact.record.details.openPackageSearch()
+				await ui.packageSearch.filters.setPackageName(
+					'POA-2024-26-CRUISE-USD: Portrait of Arabia: The Emirates, Qatar & Oman'
 				)
-				.toBeTruthy()
+				await ui.packageSearch.filters.setDatesNextMonth()
+				await ui.packageSearch.filters.setDefaultRooms(4)
+				await ui.packageSearch.filters.searchPackagesAvailability()
+			}, 'package search should be completed').toPass({ timeout: 3 * 60000 })
 		})
 
 		await test.step(`
@@ -274,34 +259,23 @@ test.describe.serial('Package Search - POA Cruise', async () => {
 			})
 			shared.itineraryId = await ui.itinerary.record.details.getRecordId()
 
-			const tabVisibilityChecks = [
-				expect
-					.soft(await ui.itinerary.record.details.getTab('Details'), 'check Details tab is visible')
-					.toBeVisible(),
-				expect
-					.soft(await ui.itinerary.record.details.getTab('Builder'), 'check Builder tab is visible')
-					.toBeVisible(),
-				expect
-					.soft(await ui.itinerary.record.details.getTab('Bookings'), 'check Bookings tab is visible')
-					.toBeVisible(),
-			]
-
-			const fieldValueChecks = [
-				expect
-					.soft(await ui.itinerary.record.details.getBookingStatus(), 'check Booking status')
-					.toEqual(<BookingStatus>'Unconfirmed'),
-				expect
-					.soft(await ui.itinerary.record.details.getRecordType(), 'check Record Type')
-					.toEqual(<RecordType>'Quote'),
-				expect
-					.soft(await ui.itinerary.record.details.getNameOnBooking(), 'check Name on Booking')
-					.toEqual(shared.passengerName(1)),
-			]
-
-			await expect(
-				async () => await Promise.all([...tabVisibilityChecks, ...fieldValueChecks]),
-				'itinerary should have correct data'
-			).toPass({ timeout: 2 * 60000 })
+			await expect(async () => {
+				for (const tab of ['Details', 'Builder', 'Bookings'] as const) {
+					await expect(
+						await ui.itinerary.record.details.getTab(tab),
+						`check ${tab} tab is visible`
+					).toBeVisible()
+				}
+				expect(await ui.itinerary.record.details.getBookingStatus(), 'check Booking status').toEqual(
+					<BookingStatus>'Unconfirmed'
+				)
+				expect(await ui.itinerary.record.details.getRecordType(), 'check Record Type').toEqual(
+					<RecordType>'Quote'
+				)
+				expect(await ui.itinerary.record.details.getNameOnBooking(), 'check Name on Booking').toEqual(
+					shared.passengerName(1)
+				)
+			}, 'itinerary should have correct data').toPass({ timeout: 2 * 60000 })
 		})
 	})
 
@@ -368,31 +342,16 @@ test.describe.serial('Package Search - POA Land', async () => {
         - 4 double rooms
         ---
         `, async () => {
-			const searchForPackages = async () => {
-				try {
-					await ui.navigator.goto(shared.primaryPassenger)
-					await ui.contact.record.details.openPackageSearch()
-					await ui.packageSearch.filters.setPackageName(
-						'POA-2024-26-LAND-USD: Portrait of Arabia: The Emirates, Qatar & Oman'
-					)
-					await ui.packageSearch.filters.setDatesNextMonth()
-					await ui.packageSearch.filters.setDefaultRooms(4)
-					await ui.packageSearch.filters.searchPackagesAvailability()
-				} catch (error) {
-					const errorMessage = error instanceof Error ? error.message : ''
-					if (errorMessage.includes('retry your recent action')) return errorMessage
-					else throw error
-				}
-			}
-
-			await expect
-				.poll(
-					async () => {
-						await searchForPackages()
-					},
-					{ timeout: 3 * 60000, message: 'package search should be completed' }
+			await expect(async () => {
+				await ui.navigator.goto(shared.primaryPassenger)
+				await ui.contact.record.details.openPackageSearch()
+				await ui.packageSearch.filters.setPackageName(
+					'POA-2024-26-LAND-USD: Portrait of Arabia: The Emirates, Qatar & Oman'
 				)
-				.toBeTruthy()
+				await ui.packageSearch.filters.setDatesNextMonth()
+				await ui.packageSearch.filters.setDefaultRooms(4)
+				await ui.packageSearch.filters.searchPackagesAvailability()
+			}, 'package search should be completed').toPass({ timeout: 3 * 60000 })
 		})
 
 		await test.step(`
@@ -564,34 +523,23 @@ test.describe.serial('Package Search - POA Land', async () => {
 			})
 			shared.itineraryId = await ui.itinerary.record.details.getRecordId()
 
-			const tabVisibilityChecks = [
-				expect
-					.soft(await ui.itinerary.record.details.getTab('Details'), 'check Details tab is visible')
-					.toBeVisible(),
-				expect
-					.soft(await ui.itinerary.record.details.getTab('Builder'), 'check Builder tab is visible')
-					.toBeVisible(),
-				expect
-					.soft(await ui.itinerary.record.details.getTab('Bookings'), 'check Bookings tab is visible')
-					.toBeVisible(),
-			]
-
-			const fieldValueChecks = [
-				expect
-					.soft(await ui.itinerary.record.details.getBookingStatus(), 'check Booking status')
-					.toEqual(<BookingStatus>'Unconfirmed'),
-				expect
-					.soft(await ui.itinerary.record.details.getRecordType(), 'check Record Type')
-					.toEqual(<RecordType>'Quote'),
-				expect
-					.soft(await ui.itinerary.record.details.getNameOnBooking(), 'check Name on Booking')
-					.toEqual(shared.passengerName(1)),
-			]
-
-			await expect(
-				async () => await Promise.all([...tabVisibilityChecks, ...fieldValueChecks]),
-				'itinerary should have correct data'
-			).toPass({ timeout: 2 * 60000 })
+			await expect(async () => {
+				for (const tab of ['Details', 'Builder', 'Bookings'] as const) {
+					await expect(
+						await ui.itinerary.record.details.getTab(tab),
+						`check ${tab} tab is visible`
+					).toBeVisible()
+				}
+				expect(await ui.itinerary.record.details.getBookingStatus(), 'check Booking status').toEqual(
+					<BookingStatus>'Unconfirmed'
+				)
+				expect(await ui.itinerary.record.details.getRecordType(), 'check Record Type').toEqual(
+					<RecordType>'Quote'
+				)
+				expect(await ui.itinerary.record.details.getNameOnBooking(), 'check Name on Booking').toEqual(
+					shared.passengerName(1)
+				)
+			}, 'itinerary should have correct data').toPass({ timeout: 2 * 60000 })
 		})
 	})
 

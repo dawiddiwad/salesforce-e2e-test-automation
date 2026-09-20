@@ -10,7 +10,7 @@ export class ItineraryCostingsLinePage extends SalesforcePage {
 	constructor(page: Page, lineIndex: number) {
 		super(page)
 		this.lineIndex = lineIndex
-		this.ready = expect(this.costingsEditor.line.nth(lineIndex), `line ${++lineIndex} should be visible`)
+		this.ready = expect(this.costingsEditor.line.nth(lineIndex), `line ${lineIndex + 1} should be visible`)
 			.toBeVisible()
 			.then(() => this.waitForOptionalSpinners())
 			.then(() => this)

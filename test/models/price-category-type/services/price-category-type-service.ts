@@ -18,7 +18,7 @@ export class PriceCategoryTypeService extends SalesforceService {
 				...data,
 			})
 		} catch (error) {
-			throw new Error(`updating price category type\n${error}`)
+			throw new Error('updating price category type', { cause: error })
 		}
 	}
 
@@ -27,7 +27,7 @@ export class PriceCategoryTypeService extends SalesforceService {
 		try {
 			return await this.updateByLabel('Cabin', { PackageNamespace__EnableAdvancedPriceSummary__c: true })
 		} catch (error) {
-			throw new Error(`enabling advanced price summary for cabin\n${error}`)
+			throw new Error('enabling advanced price summary for cabin', { cause: error })
 		}
 	}
 }

@@ -55,7 +55,7 @@ export abstract class SalesforcePage {
 		try {
 			await this.page.waitForResponse(/InstrumentationBeacon/).then((response) => response.finished())
 		} catch (error) {
-			throw new Error(`waiting for Salesforce Instrumentation Beacon request due to\n:${error}`)
+			throw new Error('waiting for Salesforce Instrumentation Beacon request', { cause: error })
 		}
 	}
 

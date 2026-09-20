@@ -13,7 +13,7 @@ export class OptionsTabPage extends BookingWizardTabPage {
 		day: (day: number) =>
 			this.page
 				.locator('c-lwc-booking-wizard-options-day-ribbon ul.days')
-				.locator(`//li[@data-day-index=${--day}]`),
+				.locator(`//li[@data-day-index=${day - 1}]`),
 		option: (option: string, room: number) => this.optionRow(option, room).locator("//*[@class='col-option']"),
 	}
 
