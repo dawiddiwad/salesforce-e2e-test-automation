@@ -9,13 +9,21 @@ export type TargetOrg = {
 	result: {
 		id: string
 		apiVersion: string
-		accessToken: string
+		accessToken?: string
 		instanceUrl: string
 		username: string
 		clientId: string
 		connectedStatus: string
 		sfdxAuthUrl: string
 		alias: string
+	}
+	warnings: string[]
+}
+
+export type AccessCredentials = {
+	status: number
+	result: {
+		accessToken: string
 	}
 	warnings: string[]
 }
@@ -29,14 +37,15 @@ export class SalesforceCliAuthenticator {
 	private static process: Promise<SalesforceCliAuthenticator> | undefined
 	private readonly cli: SalesforceCliHandler
 	private targetOrg!: TargetOrg
+	private accessCredentials!: AccessCredentials
 	ready: Promise<this>
 
 	/**
 	 * Resolves the authenticator shared by everything in the current process.
 	 *
-	 * `sf org display` costs a process spawn and a round trip, and its answer is invariant for
-	 * the lifetime of a run. Playwright workers are separate processes, so this memo yields one
-	 * CLI invocation per worker rather than one per fixture per test.
+	 * Org metadata and the access token require separate CLI calls and are invariant for the
+	 * lifetime of a run. Playwright workers are separate processes, so this memo resolves both
+	 * once per worker rather than once per fixture per test.
 	 *
 	 * A failed lookup is not cached — the next caller retries rather than inheriting the failure.
 	 */
@@ -54,11 +63,15 @@ export class SalesforceCliAuthenticator {
 
 	constructor(cliHandler: SalesforceCliHandler) {
 		this.cli = cliHandler
-		this.ready = this.setTargetOrg()
-			.then(() => this)
-			.catch((error: unknown) => {
+		this.ready = (async () => {
+			try {
+				await this.setTargetOrg()
+				await this.setAccessCredentials()
+				return this
+			} catch (error: unknown) {
 				throw diagnostic('failed loading connected Salesforce CLI target org', error)
-			})
+			}
+		})()
 	}
 
 	private async setTargetOrg() {
@@ -72,15 +85,27 @@ export class SalesforceCliAuthenticator {
 		}
 	}
 
+	private async setAccessCredentials() {
+		this.accessCredentials = (await this.cli.runCommand({
+			command: 'org auth show-access-token',
+			flags: ['--json'],
+		})) as AccessCredentials
+		this.registerCredentials()
+		if (!this.accessCredentials.result.accessToken) {
+			throw new Error('failed to retrieve default org access token from Salesforce CLI')
+		}
+	}
+
 	/**
-	 * Registers everything `sf org display --verbose` hands back that can authenticate as the
-	 * user, so any of it appearing in a downstream error is masked before it reaches a report.
+	 * Registers credentials returned by the org metadata and access-token commands, so any of
+	 * them appearing in a downstream error is masked before it reaches a report.
 	 *
 	 * This is the point that makes cause preservation safe elsewhere in the framework — it runs
-	 * before the connection check, so an org that resolves but fails to connect is still covered.
+	 * before each response is checked, so failed initialization is still covered.
 	 */
 	private registerCredentials(): void {
 		secrets.register(
+			this.accessCredentials?.result?.accessToken,
 			this.targetOrg.result?.accessToken,
 			this.targetOrg.result?.sfdxAuthUrl,
 			this.targetOrg.result?.clientId
@@ -88,7 +113,7 @@ export class SalesforceCliAuthenticator {
 	}
 
 	private getAccessToken(): string {
-		return this.targetOrg.result.accessToken
+		return this.accessCredentials.result.accessToken
 	}
 
 	public getInstanceUrl(): URL {

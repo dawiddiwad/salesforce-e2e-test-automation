@@ -8,7 +8,7 @@ import childProcess, { type ExecException } from 'node:child_process'
 import { syncBuiltinESMExports } from 'node:module'
 import { Connection } from 'jsforce'
 import type { Page } from '@playwright/test'
-import { SalesforceCliHandler } from '../../src/cli/salesforce-cli-handler'
+import { SalesforceCliHandler, type CliCommand } from '../../src/cli/salesforce-cli-handler'
 import { SalesforceCliAuthenticator } from '../../src/authorization/salesforce-cli-authenticator'
 import { DefaultSalesforceCliUser } from '../../src/users/default-salesforce-cli-users'
 import { secrets } from '../../src/errors/redaction'
@@ -344,13 +344,11 @@ test('authenticator and default user redact target org, API, and cookie failures
 			return error instanceof Error
 		})
 	}
-	runCommand.mock.mockImplementation(async () => ({
-		result: {
-			connectedStatus: 'Connected',
-			accessToken: secret,
-			instanceUrl: 'https://example.invalid',
-		},
-	}))
+	runCommand.mock.mockImplementation(async ({ command }: CliCommand) =>
+		command === 'org display'
+			? { result: { connectedStatus: 'Connected', instanceUrl: 'https://example.invalid' } }
+			: { result: { accessToken: secret } }
+	)
 	const auth = await new SalesforceCliAuthenticator(new SalesforceCliHandler()).ready
 	t.mock.method(Connection.prototype, 'identity', async () => {
 		throw new Error(secret)
@@ -369,9 +367,17 @@ test('authenticator and default user redact target org, API, and cookie failures
 
 test('successful authentication forwards credentials without logging them', async (t) => {
 	const captured = captureSteps(t)
-	t.mock.method(SalesforceCliHandler.prototype, 'runCommand', async () => ({
-		result: { connectedStatus: 'Connected', accessToken: secret, instanceUrl: 'https://example.invalid' },
-	}))
+	t.mock.method(SalesforceCliHandler.prototype, 'runCommand', async ({ command }: CliCommand) =>
+		command === 'org display'
+			? {
+					result: {
+						connectedStatus: 'Connected',
+						accessToken: 'synthetic-outdated-display-token',
+						instanceUrl: 'https://example.invalid',
+					},
+				}
+			: { result: { accessToken: secret } }
+	)
 	t.mock.method(Connection.prototype, 'identity', async function (this: Connection) {
 		assert.equal(this.accessToken, secret)
 		return {}
@@ -391,6 +397,69 @@ test('successful authentication forwards credentials without logging them', asyn
 	assert.equal(await auth.authenticateUi(page), page)
 	assert.equal(cookiesAdded, true)
 	assertSafe(captured)
+})
+
+test('org credentials are registered before connection checks or access-token failures', async (t) => {
+	for (const connectedStatus of ['Disconnected', 'Connected']) {
+		const credentials = {
+			accessToken: `synthetic-display-token-${connectedStatus}`,
+			sfdxAuthUrl: `synthetic-auth-url-${connectedStatus}`,
+			clientId: `synthetic-client-id-${connectedStatus}`,
+		}
+		const runCommand = t.mock.method(
+			SalesforceCliHandler.prototype,
+			'runCommand',
+			async ({ command }: CliCommand) => {
+				if (command === 'org display') return { result: { connectedStatus, ...credentials } }
+				throw new Error(`token lookup failed: ${Object.values(credentials).join(' ')}`)
+			}
+		)
+
+		await assert.rejects(new SalesforceCliAuthenticator(new SalesforceCliHandler()).ready, (error: unknown) => {
+			assert.ok(error instanceof Error)
+			assert.ok(error.cause instanceof Error)
+			assert.equal(
+				error.cause.message,
+				connectedStatus === 'Connected'
+					? 'token lookup failed: «redacted» «redacted» «redacted»'
+					: 'the default Salesforce CLI target org is not connected'
+			)
+			for (const credential of Object.values(credentials)) {
+				assert.equal(secrets.redact(credential), '«redacted»')
+				assert.ok(!inspect(error, { depth: null }).includes(credential))
+			}
+			return true
+		})
+		assert.equal(runCommand.mock.callCount(), connectedStatus === 'Connected' ? 2 : 1)
+		runCommand.mock.restore()
+	}
+})
+
+test('credentials from the access-token command are redacted in downstream failures', async (t) => {
+	const captured = captureSteps(t)
+	const accessToken = 'synthetic-new-command-access-token'
+	t.mock.method(SalesforceCliHandler.prototype, 'runCommand', async ({ command }: CliCommand) =>
+		command === 'org display'
+			? { result: { connectedStatus: 'Connected', instanceUrl: 'https://example.invalid' } }
+			: { result: { accessToken } }
+	)
+	const auth = await new SalesforceCliAuthenticator(new SalesforceCliHandler()).ready
+	const page = {
+		context: () => ({
+			addCookies: async () => {
+				throw new Error(`cookie rejected: ${accessToken}`)
+			},
+		}),
+	} as unknown as Page
+
+	await assert.rejects(auth.authenticateUi(page), (error: unknown) => {
+		assert.ok(error instanceof Error)
+		assert.equal(error.message, 'failed authenticating Salesforce UI context')
+		assert.ok(error.cause instanceof Error)
+		assert.equal(error.cause.message, 'cookie rejected: «redacted»')
+		return true
+	})
+	assert.ok(!inspect(captured, { depth: null }).includes(accessToken))
 })
 
 test('CLI logs and failures exclude arguments and output while retaining redacted stderr', async (t) => {
